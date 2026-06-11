@@ -10,6 +10,13 @@ type Team = {
   crest?: string;
 };
 
+type NewsItem = {
+  title?: string;
+  link?: string;
+  pubDate?: string;
+  source?: string;
+};
+
 type Match = {
   id: number;
   utcDate: string;
@@ -37,6 +44,7 @@ const navItems = [
   { id: "mata-mata", label: "Mata-mata", icon: "✣" },
   { id: "selecoes", label: "Seleções", icon: "♛" },
   { id: "resultados", label: "Resultados", icon: "✓" },
+  { id: "noticias", label: "Notícias", icon: "▤" },
 ];
 
 function stageLabel(stage?: string) {
@@ -106,6 +114,17 @@ export default function WorldCupDashboard() {
   const [goalAlerts, setGoalAlerts] = useState<
     { id: string; match: string; score: string; time: string }[]
   >([]);
+  const [news, setNews] = useState<NewsItem[]>([]);
+
+  async function loadNews() {
+    try {
+      const response = await fetch("/api/worldcup-news", { cache: "no-store" });
+      const data = await response.json();
+      setNews(data.news || []);
+    } catch {
+      setNews([]);
+    }
+  }
 
   async function loadMatches() {
     try {
@@ -154,8 +173,15 @@ export default function WorldCupDashboard() {
 
   useEffect(() => {
     loadMatches();
+    loadNews();
+
     const interval = window.setInterval(loadMatches, 20000);
-    return () => window.clearInterval(interval);
+    const newsInterval = window.setInterval(loadNews, 300000);
+
+    return () => {
+      window.clearInterval(interval);
+      window.clearInterval(newsInterval);
+    };
   }, []);
 
   const liveMatches = matches.filter(isLive);
@@ -216,7 +242,7 @@ export default function WorldCupDashboard() {
     <main className="wc-app">
       <aside className="sidebar">
         <a className="brand" href="#inicio">
-          <img src="/world-cup-trophy-real.png" alt="Taça da Copa" />
+          <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/8/83/FIFA_World_Cup_Trophy.svg/640px-FIFA_World_Cup_Trophy.svg.png" alt="Taça da Copa" />
           <strong>
             WORLD CUP
             <br />
@@ -234,7 +260,7 @@ export default function WorldCupDashboard() {
         </nav>
 
         <div className="side-card">
-          <img src="/world-cup-trophy-real.png" alt="Taça da Copa" />
+          <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/8/83/FIFA_World_Cup_Trophy.svg/640px-FIFA_World_Cup_Trophy.svg.png" alt="Taça da Copa" />
           <h3>Copa do Mundo 2026</h3>
           <p>Estados Unidos, Canadá e México recebem o maior torneio da história.</p>
         </div>
@@ -267,7 +293,7 @@ export default function WorldCupDashboard() {
             </div>
           </div>
 
-          <img className="hero-trophy" src="/world-cup-trophy-real.png" alt="Taça da Copa do Mundo" />
+          <img className="hero-trophy" src="https://upload.wikimedia.org/wikipedia/commons/thumb/8/83/FIFA_World_Cup_Trophy.svg/640px-FIFA_World_Cup_Trophy.svg.png" alt="Taça da Copa do Mundo" />
         </section>
 
         {goalAlerts.length > 0 && (
@@ -498,6 +524,37 @@ export default function WorldCupDashboard() {
                   <span>{statusLabel(match.status)}</span>
                 </div>
               </article>
+            ))}
+          </div>
+        </section>
+
+
+        <section className="panel" id="noticias">
+          <div className="panel-head">
+            <div>
+              <span>Atualizado a cada 5 minutos</span>
+              <h2>Notícias da Copa do Mundo 2026</h2>
+            </div>
+            <button onClick={loadNews}>Atualizar notícias</button>
+          </div>
+
+          <div className="news-grid">
+            {news.length === 0 && (
+              <p className="muted">Nenhuma notícia carregada neste momento.</p>
+            )}
+
+            {news.map((item, index) => (
+              <a
+                className="news-card"
+                href={item.link}
+                target="_blank"
+                rel="noopener noreferrer"
+                key={`${item.title}-${index}`}
+              >
+                <small>{item.source || "Fonte pública"}</small>
+                <h3>{item.title}</h3>
+                <p>{item.pubDate ? new Date(item.pubDate).toLocaleString("pt-BR") : "Atualizado recentemente"}</p>
+              </a>
             ))}
           </div>
         </section>
