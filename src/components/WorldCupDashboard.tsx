@@ -1,218 +1,234 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
-type Team = {
-  name: string;
-  flag: string;
-  coach: string;
-  bio: string;
-  players: { name: string; position: string; story: string }[];
-};
-
-type Match = {
+type ApiMatch = {
   id: number;
-  group: string;
-  round: string;
-  stage: "Grupos" | "Oitavas" | "Quartas" | "Semifinal" | "Final";
-  date: string;
-  time: string;
-  stadium: string;
-  home: string;
-  away: string;
-  status: "Ao vivo" | "Agendado" | "Encerrado";
-  score?: string;
+  utcDate: string;
+  status: string;
+  stage?: string;
+  group?: string;
+  matchday?: number;
+  homeTeam?: { name?: string; shortName?: string; crest?: string };
+  awayTeam?: { name?: string; shortName?: string; crest?: string };
+  score?: {
+    fullTime?: { home?: number | null; away?: number | null };
+  };
 };
 
-const teams: Team[] = [
-  {
-    name: "Brasil",
-    flag: "🇧🇷",
-    coach: "Dorival Júnior",
-    bio: "A Seleção Brasileira é a maior campeã da Copa do Mundo, com cinco títulos.",
-    players: [
-      { name: "Neymar Jr.", position: "Atacante", story: "Um dos jogadores brasileiros mais talentosos da sua geração." },
-      { name: "Vinícius Jr.", position: "Atacante", story: "Atacante explosivo, decisivo e referência ofensiva do futebol mundial." },
-      { name: "Alisson", position: "Goleiro", story: "Goleiro seguro, experiente e peça importante da Seleção Brasileira." },
-    ],
-  },
-  {
-    name: "Argentina",
-    flag: "🇦🇷",
-    coach: "Lionel Scaloni",
-    bio: "Atual campeã mundial, conhecida por sua tradição, raça e grandes craques.",
-    players: [
-      { name: "Lionel Messi", position: "Atacante", story: "Campeão mundial e um dos maiores jogadores da história do futebol." },
-      { name: "Lautaro Martínez", position: "Atacante", story: "Centroavante forte, técnico e decisivo." },
-      { name: "Emiliano Martínez", position: "Goleiro", story: "Goleiro campeão mundial, conhecido por defesas decisivas." },
-    ],
-  },
-  {
-    name: "França",
-    flag: "🇫🇷",
-    coach: "Didier Deschamps",
-    bio: "Uma das seleções mais fortes do mundo, campeã em 1998 e 2018.",
-    players: [
-      { name: "Kylian Mbappé", position: "Atacante", story: "Velocidade, finalização e protagonismo em grandes jogos." },
-      { name: "Griezmann", position: "Meia", story: "Jogador inteligente, técnico e muito importante taticamente." },
-      { name: "Tchouaméni", position: "Volante", story: "Meio-campista moderno, físico e com ótima leitura de jogo." },
-    ],
-  },
-  {
-    name: "Inglaterra",
-    flag: "🏴",
-    coach: "Gareth Southgate",
-    bio: "Seleção tradicional, campeã em 1966 e sempre cercada de expectativa.",
-    players: [
-      { name: "Harry Kane", position: "Atacante", story: "Artilheiro nato, líder e referência ofensiva inglesa." },
-      { name: "Bellingham", position: "Meia", story: "Meia completo, jovem, decisivo e com personalidade." },
-      { name: "Saka", position: "Atacante", story: "Ponta habilidoso, rápido e muito eficiente." },
-    ],
-  },
-];
+const stages = ["Todos", "GROUP_STAGE", "LAST_16", "QUARTER_FINALS", "SEMI_FINALS", "FINAL"];
 
-const matches: Match[] = [
-  { id: 1, group: "Grupo A", round: "Rodada 1", stage: "Grupos", date: "11/06/2026", time: "16:00", stadium: "Estádio Azteca", home: "México", away: "África do Sul", status: "Ao vivo", score: "0 - 0" },
-  { id: 2, group: "Grupo B", round: "Rodada 1", stage: "Grupos", date: "12/06/2026", time: "19:00", stadium: "SoFi Stadium", home: "Brasil", away: "Marrocos", status: "Agendado" },
-  { id: 3, group: "Grupo C", round: "Rodada 1", stage: "Grupos", date: "13/06/2026", time: "21:00", stadium: "MetLife Stadium", home: "Argentina", away: "Japão", status: "Agendado" },
-  { id: 4, group: "Grupo D", round: "Rodada 2", stage: "Grupos", date: "18/06/2026", time: "18:00", stadium: "AT&T Stadium", home: "França", away: "Senegal", status: "Agendado" },
-  { id: 5, group: "Grupo E", round: "Rodada 3", stage: "Grupos", date: "24/06/2026", time: "20:00", stadium: "Hard Rock Stadium", home: "Inglaterra", away: "Uruguai", status: "Agendado" },
-  { id: 6, group: "Mata-mata", round: "Oitavas de final", stage: "Oitavas", date: "04/07/2026", time: "17:00", stadium: "Mercedes-Benz Stadium", home: "1º Grupo A", away: "2º Grupo B", status: "Agendado" },
-  { id: 7, group: "Mata-mata", round: "Quartas de final", stage: "Quartas", date: "09/07/2026", time: "20:00", stadium: "Gillette Stadium", home: "Vencedor O1", away: "Vencedor O2", status: "Agendado" },
-  { id: 8, group: "Mata-mata", round: "Semifinal", stage: "Semifinal", date: "14/07/2026", time: "21:00", stadium: "AT&T Stadium", home: "Vencedor Q1", away: "Vencedor Q2", status: "Agendado" },
-  { id: 9, group: "Mata-mata", round: "Final", stage: "Final", date: "19/07/2026", time: "19:00", stadium: "MetLife Stadium", home: "Finalista 1", away: "Finalista 2", status: "Agendado" },
-];
+function stageLabel(stage?: string) {
+  const map: Record<string, string> = {
+    GROUP_STAGE: "Fase de Grupos",
+    LAST_16: "Oitavas de Final",
+    QUARTER_FINALS: "Quartas de Final",
+    SEMI_FINALS: "Semifinais",
+    THIRD_PLACE: "Disputa de 3º Lugar",
+    FINAL: "Final",
+  };
+  return map[stage || ""] || stage || "A definir";
+}
 
-const groups = Array.from({ length: 12 }, (_, i) => ({
-  name: `Grupo ${String.fromCharCode(65 + i)}`,
-  teams: ["Brasil", "Argentina", "França", "Inglaterra"].sort(() => 0.5 - Math.random()).slice(0, 4),
-}));
+function statusLabel(status?: string) {
+  const map: Record<string, string> = {
+    SCHEDULED: "Agendado",
+    TIMED: "Agendado",
+    IN_PLAY: "Ao vivo",
+    PAUSED: "Intervalo",
+    FINISHED: "Encerrado",
+    POSTPONED: "Adiado",
+  };
+  return map[status || ""] || status || "A definir";
+}
+
+function formatDate(value: string) {
+  return new Intl.DateTimeFormat("pt-BR", {
+    dateStyle: "short",
+    timeStyle: "short",
+  }).format(new Date(value));
+}
 
 export default function WorldCupDashboard() {
-  const [selectedTeam, setSelectedTeam] = useState<Team>(teams[0]);
-  const [selectedPlayer, setSelectedPlayer] = useState(selectedTeam.players[0]);
-  const [stage, setStage] = useState<Match["stage"] | "Todos">("Todos");
+  const [matches, setMatches] = useState<ApiMatch[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedStage, setSelectedStage] = useState("Todos");
+  const [selectedTeam, setSelectedTeam] = useState<string | null>(null);
+
+  useEffect(() => {
+    async function loadMatches() {
+      try {
+        const response = await fetch("/api/matches", { cache: "no-store" });
+        const data = await response.json();
+        setMatches(data.matches || []);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    loadMatches();
+  }, []);
 
   const filteredMatches = useMemo(() => {
-    return stage === "Todos" ? matches : matches.filter((match) => match.stage === stage);
-  }, [stage]);
+    if (selectedStage === "Todos") return matches;
+    return matches.filter((match) => match.stage === selectedStage);
+  }, [matches, selectedStage]);
 
-  function selectTeam(team: Team) {
-    setSelectedTeam(team);
-    setSelectedPlayer(team.players[0]);
-  }
+  const liveMatches = matches.filter((match) =>
+    ["IN_PLAY", "PAUSED"].includes(match.status)
+  );
+
+  const groups = useMemo(() => {
+    const result: Record<string, ApiMatch[]> = {};
+
+    matches.forEach((match) => {
+      const key = match.group || "Sem grupo";
+      if (!result[key]) result[key] = [];
+      result[key].push(match);
+    });
+
+    return result;
+  }, [matches]);
+
+  const selectedTeamMatches = selectedTeam
+    ? matches.filter(
+        (match) =>
+          match.homeTeam?.name === selectedTeam ||
+          match.awayTeam?.name === selectedTeam
+      )
+    : [];
 
   return (
     <main className="world-page">
       <section className="hero">
-        <div className="hero-art">
-          <div className="beam pink" />
-          <div className="beam cyan" />
-          <div className="beam orange" />
-          <div className="trophy-emoji">🏆</div>
-        </div>
+        <div className="hero-lights" />
+        <div className="trophy">🏆</div>
 
-        <div className="hero-card">
-          <span className="eyebrow">Dashboard Oficial da Copa 2026</span>
+        <div className="hero-title">
           <h1>FIFA WORLD CUP</h1>
-          <p>Jogos, grupos, rodadas, mata-mata, seleções e jogadores em um só painel.</p>
+          <p>Jogos ao vivo, calendário, grupos, rodadas e mata-mata</p>
         </div>
       </section>
 
       <section className="dashboard">
-        <div className="section-head">
-          <span>Ao vivo</span>
-          <h2>Central de Jogos</h2>
-          <p>Acompanhe partidas, datas, horários, grupos, fases e status em tempo real.</p>
+        <div className="section-title">
+          <span>Tempo real</span>
+          <h2>Jogos ao vivo</h2>
+          <p>Dados carregados diretamente da API Football Data.</p>
         </div>
 
-        <div className="live-grid">
-          {matches.filter((match) => match.status === "Ao vivo").map((match) => (
-            <article className="live-card" key={match.id}>
-              <div className="live-badge">● AO VIVO</div>
-              <h3>{match.home} x {match.away}</h3>
-              <strong>{match.score}</strong>
-              <p>{match.round} · {match.group}</p>
-              <small>{match.stadium}</small>
-            </article>
-          ))}
-        </div>
+        {loading ? (
+          <div className="empty">Carregando jogos...</div>
+        ) : liveMatches.length > 0 ? (
+          <div className="live-grid">
+            {liveMatches.map((match) => (
+              <article className="live-card" key={match.id}>
+                <strong>● AO VIVO</strong>
+                <h3>
+                  {match.homeTeam?.shortName || match.homeTeam?.name} x{" "}
+                  {match.awayTeam?.shortName || match.awayTeam?.name}
+                </h3>
+                <p>{stageLabel(match.stage)} · Rodada {match.matchday || "-"}</p>
+              </article>
+            ))}
+          </div>
+        ) : (
+          <div className="empty">Nenhum jogo ao vivo neste momento.</div>
+        )}
 
         <div className="tabs">
-          {["Todos", "Grupos", "Oitavas", "Quartas", "Semifinal", "Final"].map((item) => (
+          {stages.map((stage) => (
             <button
-              key={item}
-              className={stage === item ? "active" : ""}
-              onClick={() => setStage(item as Match["stage"] | "Todos")}
+              key={stage}
+              onClick={() => setSelectedStage(stage)}
+              className={selectedStage === stage ? "active" : ""}
             >
-              {item}
+              {stage === "Todos" ? "Todos" : stageLabel(stage)}
             </button>
           ))}
         </div>
 
-        <div className="match-list">
-          {filteredMatches.map((match) => (
-            <article className="match-card" key={match.id}>
-              <div>
-                <span>{match.stage}</span>
-                <h3>{match.home} x {match.away}</h3>
-                <p>{match.group} · {match.round}</p>
-              </div>
-              <div className="match-meta">
-                <strong>{match.date}</strong>
-                <small>{match.time} · {match.stadium}</small>
-                <em className={match.status === "Ao vivo" ? "live" : ""}>{match.status}</em>
-              </div>
-            </article>
-          ))}
+        <div className="section-title">
+          <span>Calendário</span>
+          <h2>Jogos por fase</h2>
         </div>
 
-        <div className="section-head">
-          <span>Calendário por grupos</span>
-          <h2>Grupos da Copa</h2>
+        <div className="matches">
+          {filteredMatches.map((match) => {
+            const homeScore = match.score?.fullTime?.home;
+            const awayScore = match.score?.fullTime?.away;
+
+            return (
+              <article className="match-card" key={match.id}>
+                <div className="teams">
+                  <button onClick={() => setSelectedTeam(match.homeTeam?.name || null)}>
+                    {match.homeTeam?.crest && <img src={match.homeTeam.crest} alt="" />}
+                    <span>{match.homeTeam?.name || "A definir"}</span>
+                  </button>
+
+                  <div className="score">
+                    {homeScore ?? "-"} x {awayScore ?? "-"}
+                  </div>
+
+                  <button onClick={() => setSelectedTeam(match.awayTeam?.name || null)}>
+                    {match.awayTeam?.crest && <img src={match.awayTeam.crest} alt="" />}
+                    <span>{match.awayTeam?.name || "A definir"}</span>
+                  </button>
+                </div>
+
+                <div className="match-info">
+                  <strong>{stageLabel(match.stage)}</strong>
+                  <span>{match.group || "Mata-mata"} · Rodada {match.matchday || "-"}</span>
+                  <span>{formatDate(match.utcDate)}</span>
+                  <em>{statusLabel(match.status)}</em>
+                </div>
+              </article>
+            );
+          })}
         </div>
 
-        <div className="groups-grid">
-          {groups.map((group) => (
-            <article className="group-card" key={group.name}>
-              <h3>{group.name}</h3>
-              {group.teams.map((team) => (
-                <button key={team} onClick={() => selectTeam(teams.find((item) => item.name === team) || teams[0])}>
-                  {teams.find((item) => item.name === team)?.flag} {team}
-                </button>
+        <div className="section-title">
+          <span>Grupos</span>
+          <h2>Calendário por grupos</h2>
+        </div>
+
+        <div className="groups">
+          {Object.entries(groups).map(([group, groupMatches]) => (
+            <article className="group-card" key={group}>
+              <h3>{group}</h3>
+              {groupMatches.map((match) => (
+                <p key={match.id}>
+                  Rodada {match.matchday || "-"} · {match.homeTeam?.shortName || match.homeTeam?.name || "A definir"} x{" "}
+                  {match.awayTeam?.shortName || match.awayTeam?.name || "A definir"}
+                </p>
               ))}
             </article>
           ))}
         </div>
 
-        <div className="team-panel">
-          <div className="team-info">
-            <span>{selectedTeam.flag}</span>
-            <h2>{selectedTeam.name}</h2>
-            <p>{selectedTeam.bio}</p>
-            <strong>Técnico: {selectedTeam.coach}</strong>
-          </div>
+        {selectedTeam && (
+          <section className="team-panel">
+            <div>
+              <span>Seleção</span>
+              <h2>{selectedTeam}</h2>
+              <p>
+                A API atual mostra jogos, datas, placares, fases, grupos e escudos.
+                Para escalação, técnico e história individual dos jogadores, precisamos
+                adicionar um endpoint de squads/jogadores.
+              </p>
+            </div>
 
-          <div className="squad">
-            <h3>Escalação / Jogadores</h3>
-            {selectedTeam.players.map((player) => (
-              <button
-                key={player.name}
-                className={selectedPlayer.name === player.name ? "active-player" : ""}
-                onClick={() => setSelectedPlayer(player)}
-              >
-                <strong>{player.name}</strong>
-                <small>{player.position}</small>
-              </button>
-            ))}
-          </div>
-
-          <div className="player-story">
-            <h3>História do jogador</h3>
-            <h2>{selectedPlayer.name}</h2>
-            <p>{selectedPlayer.story}</p>
-          </div>
-        </div>
+            <div>
+              <h3>Jogos desta seleção</h3>
+              {selectedTeamMatches.map((match) => (
+                <p key={match.id}>
+                  {formatDate(match.utcDate)} · {match.homeTeam?.shortName || match.homeTeam?.name} x{" "}
+                  {match.awayTeam?.shortName || match.awayTeam?.name}
+                </p>
+              ))}
+            </div>
+          </section>
+        )}
       </section>
     </main>
   );
