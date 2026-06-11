@@ -10,13 +10,6 @@ type Team = {
   crest?: string;
 };
 
-type NewsItem = {
-  title?: string;
-  link?: string;
-  pubDate?: string;
-  source?: string;
-};
-
 type Match = {
   id: number;
   utcDate: string;
@@ -36,15 +29,26 @@ type Match = {
   referees?: { name?: string; nationality?: string; type?: string }[];
 };
 
+type NewsItem = {
+  title?: string;
+  source?: string;
+  pubDate?: string;
+};
+
+type Enrichment = {
+  featuredMatchReports?: any[];
+  teams?: Record<string, any>;
+};
+
 const navItems = [
   { id: "inicio", label: "Início", icon: "⌂" },
+  { id: "resultado", label: "Resultado de hoje", icon: "✓" },
   { id: "ao-vivo", label: "Jogos ao vivo", icon: "●" },
-  { id: "calendario", label: "Calendário", icon: "▦" },
+  { id: "noticias", label: "Notícias", icon: "▤" },
   { id: "grupos", label: "Grupos", icon: "☷" },
+  { id: "calendario", label: "Calendário", icon: "▦" },
   { id: "mata-mata", label: "Mata-mata", icon: "✣" },
   { id: "selecoes", label: "Seleções", icon: "♛" },
-  { id: "resultados", label: "Resultados", icon: "✓" },
-  { id: "noticias", label: "Notícias", icon: "▤" },
 ];
 
 function stageLabel(stage?: string) {
@@ -56,7 +60,6 @@ function stageLabel(stage?: string) {
     THIRD_PLACE: "Disputa de 3º lugar",
     FINAL: "Final",
   };
-
   return map[stage || ""] || stage || "A definir";
 }
 
@@ -73,10 +76,7 @@ function statusLabel(status?: string) {
     PAUSED: "Intervalo",
     FINISHED: "Encerrado",
     POSTPONED: "Adiado",
-    SUSPENDED: "Suspenso",
-    CANCELED: "Cancelado",
   };
-
   return map[status || ""] || status || "A definir";
 }
 
@@ -92,7 +92,6 @@ function score(match: Match) {
 
 function formatDate(value?: string) {
   if (!value) return "A definir";
-
   return new Intl.DateTimeFormat("pt-BR", {
     timeZone: "America/Sao_Paulo",
     day: "2-digit",
@@ -108,87 +107,60 @@ function isLive(match: Match) {
 
 export default function WorldCupDashboard() {
   const [matches, setMatches] = useState<Match[]>([]);
+  const [news, setNews] = useState<NewsItem[]>([]);
+  const [enrichment, setEnrichment] = useState<Enrichment>({});
   const [loading, setLoading] = useState(true);
   const [activeStage, setActiveStage] = useState("ALL");
   const [selectedTeam, setSelectedTeam] = useState<Team | null>(null);
-  const [goalAlerts, setGoalAlerts] = useState<
-    { id: string; match: string; score: string; time: string }[]
-  >([]);
-  const [news, setNews] = useState<NewsItem[]>([]);
-
-  async function loadNews() {
-    try {
-      const response = await fetch("/api/worldcup-news", { cache: "no-store" });
-      const data = await response.json();
-      setNews(data.news || []);
-    } catch {
-      setNews([]);
-    }
-  }
+  const [selectedMatch, setSelectedMatch] = useState<Match | null>(null);
 
   async function loadMatches() {
     try {
       const response = await fetch("/api/live-worldcup", { cache: "no-store" });
       const data = await response.json();
-      const nextMatches: Match[] = data.matches || [];
-
-      setMatches((previous) => {
-        if (previous.length > 0) {
-          const alerts: { id: string; match: string; score: string; time: string }[] = [];
-
-          nextMatches.forEach((next) => {
-            const old = previous.find((item) => item.id === next.id);
-            if (!old) return;
-
-            const oldHome = old.score?.fullTime?.home ?? 0;
-            const oldAway = old.score?.fullTime?.away ?? 0;
-            const newHome = next.score?.fullTime?.home ?? 0;
-            const newAway = next.score?.fullTime?.away ?? 0;
-
-            if (newHome > oldHome || newAway > oldAway) {
-              alerts.unshift({
-                id: `${next.id}-${Date.now()}`,
-                match: `${teamName(next.homeTeam)} x ${teamName(next.awayTeam)}`,
-                score: `${newHome} - ${newAway}`,
-                time: new Intl.DateTimeFormat("pt-BR", {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                  second: "2-digit",
-                }).format(new Date()),
-              });
-            }
-          });
-
-          if (alerts.length > 0) {
-            setGoalAlerts((current) => [...alerts, ...current].slice(0, 4));
-          }
-        }
-
-        return nextMatches;
-      });
+      setMatches(data.matches || []);
     } finally {
       setLoading(false);
     }
   }
 
+  async function loadContent() {
+    const [newsResponse, enrichmentResponse] = await Promise.all([
+      fetch("/api/worldcup-news", { cache: "no-store" }),
+      fetch("/api/worldcup-enrichment", { cache: "no-store" }),
+    ]);
+
+    const newsData = await newsResponse.json();
+    const enrichmentData = await enrichmentResponse.json();
+
+    setNews(newsData.news || []);
+    setEnrichment(enrichmentData || {});
+  }
+
   useEffect(() => {
     loadMatches();
-    loadNews();
+    loadContent();
 
-    const interval = window.setInterval(loadMatches, 20000);
-    const newsInterval = window.setInterval(loadNews, 300000);
+    const matchInterval = window.setInterval(loadMatches, 20000);
+    const contentInterval = window.setInterval(loadContent, 300000);
 
     return () => {
-      window.clearInterval(interval);
-      window.clearInterval(newsInterval);
+      window.clearInterval(matchInterval);
+      window.clearInterval(contentInterval);
     };
   }, []);
 
   const liveMatches = matches.filter(isLive);
   const finishedMatches = matches.filter((match) => match.status === "FINISHED");
-  const upcomingMatches = matches.filter((match) =>
-    ["SCHEDULED", "TIMED"].includes(match.status)
-  );
+  const mexicoMatch =
+    matches.find((match) => match.id === 537327) ||
+    finishedMatches.find((match) =>
+      `${teamName(match.homeTeam)} ${teamName(match.awayTeam)}`
+        .toLowerCase()
+        .includes("mexico")
+    );
+
+  const mexicoReport = enrichment.featuredMatchReports?.[0];
 
   const stageMatches = useMemo(() => {
     if (activeStage === "ALL") return matches;
@@ -216,17 +188,19 @@ export default function WorldCupDashboard() {
 
   const teams = useMemo(() => {
     const map = new Map<string, Team>();
-
     matches.forEach((match) => {
       [match.homeTeam, match.awayTeam].forEach((team) => {
         if (team?.name) map.set(team.name, team);
       });
     });
-
     return Array.from(map.values()).sort((a, b) =>
       (a.name || "").localeCompare(b.name || "")
     );
   }, [matches]);
+
+  const selectedTeamInfo = selectedTeam?.name
+    ? enrichment.teams?.[selectedTeam.name]
+    : null;
 
   const selectedTeamMatches = selectedTeam
     ? matches.filter(
@@ -236,18 +210,15 @@ export default function WorldCupDashboard() {
       )
     : [];
 
-  const knockoutStages = ["LAST_16", "QUARTER_FINALS", "SEMI_FINALS", "FINAL"];
+  const selectedReport =
+    selectedMatch?.id === 537327 ? mexicoReport : null;
 
   return (
     <main className="wc-app">
       <aside className="sidebar">
         <a className="brand" href="#inicio">
           <img src="/world-cup-trophy-real.svg" alt="Taça da Copa" />
-          <strong>
-            WORLD CUP
-            <br />
-            2026
-          </strong>
+          <strong>WORLD CUP<br />2026</strong>
         </a>
 
         <nav>
@@ -262,7 +233,7 @@ export default function WorldCupDashboard() {
         <div className="side-card">
           <img src="/world-cup-trophy-real.svg" alt="Taça da Copa" />
           <h3>Copa do Mundo 2026</h3>
-          <p>Estados Unidos, Canadá e México recebem o maior torneio da história.</p>
+          <p>Placar, jogos, grupos, notícias e histórias em um painel organizado.</p>
         </div>
       </aside>
 
@@ -271,161 +242,119 @@ export default function WorldCupDashboard() {
           <div className="hero-copy">
             <span>Dashboard em tempo real</span>
             <h1>COPA DO MUNDO 2026</h1>
-            <p>Jogos, placares, grupos, rodadas, mata-mata e seleções.</p>
+            <p>Resultados, notícias, grupos, seleções e informações relevantes para quem acompanha futebol.</p>
 
             <div className="facts">
-              <div>
-                <strong>11 JUN</strong>
-                <small>Início</small>
-              </div>
-              <div>
-                <strong>19 JUL</strong>
-                <small>Final</small>
-              </div>
-              <div>
-                <strong>48</strong>
-                <small>Seleções</small>
-              </div>
-              <div>
-                <strong>16</strong>
-                <small>Cidades</small>
-              </div>
+              <div><strong>{matches.length || "-"}</strong><small>Jogos</small></div>
+              <div><strong>{liveMatches.length}</strong><small>Ao vivo</small></div>
+              <div><strong>{finishedMatches.length}</strong><small>Encerrados</small></div>
+              <div><strong>{teams.length || "-"}</strong><small>Seleções</small></div>
             </div>
           </div>
 
           <img className="hero-trophy" src="/world-cup-trophy-real.svg" alt="Taça da Copa do Mundo" />
         </section>
 
-        {goalAlerts.length > 0 && (
-          <section className="goal-alerts">
-            {goalAlerts.map((goal) => (
-              <article className="goal-alert" key={goal.id}>
-                <strong>⚽ Gol detectado</strong>
-                <span>{goal.match}</span>
-                <b>{goal.score}</b>
-                <small>Atualizado às {goal.time}</small>
-              </article>
-            ))}
-          </section>
-        )}
+        <section className="panel result-feature" id="resultado">
+          <div className="panel-head">
+            <div>
+              <span>Resultado em destaque</span>
+              <h2>México x África do Sul</h2>
+            </div>
+            <button onClick={loadMatches}>Atualizar placar</button>
+          </div>
 
-        <section className="stats">
-          <article>
-            <span>⚽</span>
-            <small>Jogos carregados</small>
-            <strong>{matches.length || "-"}</strong>
-          </article>
-          <article>
-            <span>●</span>
-            <small>Ao vivo</small>
-            <strong>{liveMatches.length}</strong>
-          </article>
-          <article>
-            <span>✓</span>
-            <small>Encerrados</small>
-            <strong>{finishedMatches.length}</strong>
-          </article>
-          <article>
-            <span>▦</span>
-            <small>Seleções encontradas</small>
-            <strong>{teams.length || "-"}</strong>
-          </article>
+          {mexicoMatch ? (
+            <div className="feature-match" onClick={() => setSelectedMatch(mexicoMatch)}>
+              <div>
+                {mexicoMatch.homeTeam?.crest && <img src={mexicoMatch.homeTeam.crest} alt="" />}
+                <h3>{teamName(mexicoMatch.homeTeam)}</h3>
+              </div>
+
+              <strong>{score(mexicoMatch)}</strong>
+
+              <div>
+                {mexicoMatch.awayTeam?.crest && <img src={mexicoMatch.awayTeam.crest} alt="" />}
+                <h3>{teamName(mexicoMatch.awayTeam)}</h3>
+              </div>
+            </div>
+          ) : (
+            <p className="muted">Carregando resultado do jogo...</p>
+          )}
+
+          {mexicoReport && (
+            <div className="match-story">
+              <p>{mexicoReport.summary}</p>
+              <div className="goals-line">
+                {mexicoReport.goals.map((goal: any) => (
+                  <article key={`${goal.player}-${goal.minute}`}>
+                    <b>⚽ {goal.minute}</b>
+                    <strong>{goal.player}</strong>
+                    <span>{goal.half}</span>
+                    <p>{goal.description}</p>
+                  </article>
+                ))}
+              </div>
+            </div>
+          )}
         </section>
 
         <section className="panel" id="ao-vivo">
           <div className="panel-head">
-            <div>
-              <span>Tempo real</span>
-              <h2>Jogos ao vivo</h2>
-            </div>
+            <div><span>Tempo real</span><h2>Jogos ao vivo</h2></div>
             <button onClick={loadMatches}>Atualizar agora</button>
           </div>
 
           {loading && <p className="muted">Carregando jogos...</p>}
-
-          {!loading && liveMatches.length === 0 && (
-            <p className="muted">Nenhum jogo ao vivo neste momento.</p>
-          )}
+          {!loading && liveMatches.length === 0 && <p className="muted">Nenhum jogo ao vivo neste momento.</p>}
 
           <div className="match-grid">
             {liveMatches.map((match) => (
-              <article className="match-card live" key={match.id}>
-                <div className="match-top">
-                  <span>{stageLabel(match.stage)}</span>
-                  <b>{statusLabel(match.status)}</b>
-                </div>
-
+              <article className="match-card live" key={match.id} onClick={() => setSelectedMatch(match)}>
+                <div className="match-top"><span>{stageLabel(match.stage)}</span><b>{statusLabel(match.status)}</b></div>
                 <div className="teams-row">
-                  <button onClick={() => setSelectedTeam(match.homeTeam || null)}>
+                  <button onClick={(e) => { e.stopPropagation(); setSelectedTeam(match.homeTeam || null); }}>
                     {match.homeTeam?.crest && <img src={match.homeTeam.crest} alt="" />}
                     {teamName(match.homeTeam)}
                   </button>
-
                   <strong>{score(match)}</strong>
-
-                  <button onClick={() => setSelectedTeam(match.awayTeam || null)}>
+                  <button onClick={(e) => { e.stopPropagation(); setSelectedTeam(match.awayTeam || null); }}>
                     {match.awayTeam?.crest && <img src={match.awayTeam.crest} alt="" />}
                     {teamName(match.awayTeam)}
                   </button>
                 </div>
-
-                <p>{groupLabel(match.group)} · Rodada {match.matchday || "-"}</p>
               </article>
             ))}
           </div>
         </section>
 
-        <section className="panel" id="calendario">
+        <section className="panel" id="noticias">
           <div className="panel-head">
             <div>
-              <span>Calendário</span>
-              <h2>Jogos por fase</h2>
+              <span>Atualizado a cada 5 minutos</span>
+              <h2>Notícias e contexto da Copa</h2>
             </div>
+            <button onClick={loadContent}>Atualizar notícias</button>
           </div>
 
-          <div className="tabs">
-            {["ALL", "GROUP_STAGE", "LAST_16", "QUARTER_FINALS", "SEMI_FINALS", "FINAL"].map((stage) => (
-              <button
-                key={stage}
-                className={activeStage === stage ? "active" : ""}
-                onClick={() => setActiveStage(stage)}
-              >
-                {stage === "ALL" ? "Todos" : stageLabel(stage)}
-              </button>
-            ))}
-          </div>
-
-          <div className="match-list">
-            {stageMatches.map((match) => (
-              <article className="calendar-card" key={match.id}>
-                <div>
-                  <small>{stageLabel(match.stage)} · {groupLabel(match.group)}</small>
-                  <h3>{teamName(match.homeTeam)} x {teamName(match.awayTeam)}</h3>
-                  <p>Rodada {match.matchday || "-"} · {formatDate(match.utcDate)}</p>
-                </div>
-
-                <div>
-                  <strong>{score(match)}</strong>
-                  <span>{statusLabel(match.status)}</span>
-                </div>
+          <div className="news-grid">
+            {news.length === 0 && <p className="muted">Carregando notícias...</p>}
+            {news.map((item, index) => (
+              <article className="news-card" key={`${item.title}-${index}`}>
+                <small>{item.source || "Fonte pública"}</small>
+                <h3>{item.title}</h3>
+                <p>{item.pubDate ? new Date(item.pubDate).toLocaleString("pt-BR") : "Atualizado recentemente"}</p>
               </article>
             ))}
           </div>
         </section>
 
         <section className="panel" id="grupos">
-          <div className="panel-head">
-            <div>
-              <span>Grupos</span>
-              <h2>Calendário por grupos</h2>
-            </div>
-          </div>
-
+          <div className="panel-head"><div><span>Grupos</span><h2>Calendário por grupos</h2></div></div>
           <div className="groups-grid">
             {Object.entries(groups).map(([group, data]) => (
               <article className="group-card" key={group}>
                 <h3>{group}</h3>
-
                 <div className="group-teams">
                   {data.teams.map((team) => (
                     <button key={team.name} onClick={() => setSelectedTeam(team)}>
@@ -434,10 +363,9 @@ export default function WorldCupDashboard() {
                     </button>
                   ))}
                 </div>
-
                 <div className="group-matches">
                   {data.matches.slice(0, 6).map((match) => (
-                    <p key={match.id}>
+                    <p key={match.id} onClick={() => setSelectedMatch(match)}>
                       {formatDate(match.utcDate)} · {teamName(match.homeTeam)} x {teamName(match.awayTeam)}
                     </p>
                   ))}
@@ -447,32 +375,44 @@ export default function WorldCupDashboard() {
           </div>
         </section>
 
-        <section className="panel" id="mata-mata">
-          <div className="panel-head">
-            <div>
-              <span>Fase final</span>
-              <h2>Mata-mata</h2>
-            </div>
+        <section className="panel" id="calendario">
+          <div className="panel-head"><div><span>Calendário</span><h2>Jogos por fase</h2></div></div>
+          <div className="tabs">
+            {["ALL", "GROUP_STAGE", "LAST_16", "QUARTER_FINALS", "SEMI_FINALS", "FINAL"].map((stage) => (
+              <button key={stage} className={activeStage === stage ? "active" : ""} onClick={() => setActiveStage(stage)}>
+                {stage === "ALL" ? "Todos" : stageLabel(stage)}
+              </button>
+            ))}
           </div>
 
-          <div className="bracket-grid">
-            {knockoutStages.map((stage) => {
-              const list = matches.filter((match) => match.stage === stage);
+          <div className="match-list">
+            {stageMatches.map((match) => (
+              <article className="calendar-card" key={match.id} onClick={() => setSelectedMatch(match)}>
+                <div>
+                  <small>{stageLabel(match.stage)} · {groupLabel(match.group)}</small>
+                  <h3>{teamName(match.homeTeam)} x {teamName(match.awayTeam)}</h3>
+                  <p>Rodada {match.matchday || "-"} · {formatDate(match.utcDate)}</p>
+                </div>
+                <div><strong>{score(match)}</strong><span>{statusLabel(match.status)}</span></div>
+              </article>
+            ))}
+          </div>
+        </section>
 
+        <section className="panel" id="mata-mata">
+          <div className="panel-head"><div><span>Fase final</span><h2>Mata-mata</h2></div></div>
+          <div className="bracket-grid">
+            {["LAST_16", "QUARTER_FINALS", "SEMI_FINALS", "FINAL"].map((stage) => {
+              const list = matches.filter((match) => match.stage === stage);
               return (
                 <article className="bracket-col" key={stage}>
                   <h3>{stageLabel(stage)}</h3>
-
-                  {list.length === 0 ? (
-                    <div className="bracket-box">Aguardando definição oficial</div>
-                  ) : (
-                    list.map((match) => (
-                      <div className="bracket-box" key={match.id}>
-                        <span>{teamName(match.homeTeam)} x {teamName(match.awayTeam)}</span>
-                        <strong>{score(match)}</strong>
-                      </div>
-                    ))
-                  )}
+                  {list.length === 0 ? <div className="bracket-box">Aguardando definição oficial</div> : list.map((match) => (
+                    <div className="bracket-box" key={match.id} onClick={() => setSelectedMatch(match)}>
+                      <span>{teamName(match.homeTeam)} x {teamName(match.awayTeam)}</span>
+                      <strong>{score(match)}</strong>
+                    </div>
+                  ))}
                 </article>
               );
             })}
@@ -480,13 +420,7 @@ export default function WorldCupDashboard() {
         </section>
 
         <section className="panel" id="selecoes">
-          <div className="panel-head">
-            <div>
-              <span>Seleções</span>
-              <h2>Times encontrados no calendário</h2>
-            </div>
-          </div>
-
+          <div className="panel-head"><div><span>Seleções</span><h2>Times encontrados no calendário</h2></div></div>
           <div className="teams-grid">
             {teams.map((team) => (
               <button className="team-card" key={team.name} onClick={() => setSelectedTeam(team)}>
@@ -498,86 +432,84 @@ export default function WorldCupDashboard() {
           </div>
         </section>
 
-        <section className="panel" id="resultados">
-          <div className="panel-head">
-            <div>
-              <span>Resultados</span>
-              <h2>Jogos encerrados</h2>
-            </div>
-          </div>
-
-          <div className="match-list">
-            {finishedMatches.length === 0 && (
-              <p className="muted">Nenhum jogo encerrado disponível ainda.</p>
-            )}
-
-            {finishedMatches.map((match) => (
-              <article className="calendar-card" key={match.id}>
+        {selectedMatch && (
+          <div className="modal-backdrop" onClick={() => setSelectedMatch(null)}>
+            <section className="team-modal" onClick={(e) => e.stopPropagation()}>
+              <button className="close" onClick={() => setSelectedMatch(null)}>×</button>
+              <div className="modal-title">
                 <div>
-                  <small>{stageLabel(match.stage)} · {groupLabel(match.group)}</small>
-                  <h3>{teamName(match.homeTeam)} x {teamName(match.awayTeam)}</h3>
-                  <p>Atualizado em {match.lastUpdated ? formatDate(match.lastUpdated) : "tempo real"}</p>
+                  <span>Detalhes do jogo</span>
+                  <h2>{teamName(selectedMatch.homeTeam)} x {teamName(selectedMatch.awayTeam)}</h2>
+                  <p>{stageLabel(selectedMatch.stage)} · {groupLabel(selectedMatch.group)} · {formatDate(selectedMatch.utcDate)}</p>
                 </div>
+              </div>
 
-                <div>
-                  <strong>{score(match)}</strong>
-                  <span>{statusLabel(match.status)}</span>
+              <div className="feature-match small">
+                <div>{selectedMatch.homeTeam?.crest && <img src={selectedMatch.homeTeam.crest} alt="" />}<h3>{teamName(selectedMatch.homeTeam)}</h3></div>
+                <strong>{score(selectedMatch)}</strong>
+                <div>{selectedMatch.awayTeam?.crest && <img src={selectedMatch.awayTeam.crest} alt="" />}<h3>{teamName(selectedMatch.awayTeam)}</h3></div>
+              </div>
+
+              {selectedReport ? (
+                <div className="match-story">
+                  <p>{selectedReport.summary}</p>
+                  <h3>Gols</h3>
+                  <div className="goals-line">
+                    {selectedReport.goals.map((goal: any) => (
+                      <article key={`${goal.player}-${goal.minute}`}>
+                        <b>⚽ {goal.minute}</b>
+                        <strong>{goal.player}</strong>
+                        <span>{goal.half}</span>
+                        <p>{goal.description}</p>
+                      </article>
+                    ))}
+                  </div>
+                  <h3>Cartões e momentos importantes</h3>
+                  {selectedReport.cards.map((card: string) => <p key={card}>• {card}</p>)}
                 </div>
-              </article>
-            ))}
+              ) : (
+                <p className="modal-note">Esta fonte mostra placar, horário, grupo, fase, árbitro e status. Eventos detalhados ainda não estão disponíveis para este jogo.</p>
+              )}
+            </section>
           </div>
-        </section>
-
-
-        <section className="panel" id="noticias">
-          <div className="panel-head">
-            <div>
-              <span>Atualizado a cada 5 minutos</span>
-              <h2>Notícias da Copa do Mundo 2026</h2>
-            </div>
-            <button onClick={loadNews}>Atualizar notícias</button>
-          </div>
-
-          <div className="news-grid">
-            {news.length === 0 && (
-              <p className="muted">Nenhuma notícia carregada neste momento.</p>
-            )}
-
-            {news.map((item, index) => (
-              <a
-                className="news-card"
-                href={item.link}
-                target="_blank"
-                rel="noopener noreferrer"
-                key={`${item.title}-${index}`}
-              >
-                <small>{item.source || "Fonte pública"}</small>
-                <h3>{item.title}</h3>
-                <p>{item.pubDate ? new Date(item.pubDate).toLocaleString("pt-BR") : "Atualizado recentemente"}</p>
-              </a>
-            ))}
-          </div>
-        </section>
+        )}
 
         {selectedTeam && (
           <div className="modal-backdrop" onClick={() => setSelectedTeam(null)}>
             <section className="team-modal" onClick={(e) => e.stopPropagation()}>
               <button className="close" onClick={() => setSelectedTeam(null)}>×</button>
-
               <div className="modal-title">
                 {selectedTeam.crest && <img src={selectedTeam.crest} alt="" />}
                 <div>
                   <span>Seleção</span>
-                  <h2>{teamName(selectedTeam)}</h2>
+                  <h2>{selectedTeamInfo?.name || teamName(selectedTeam)}</h2>
                   <p>{selectedTeam.tla || "Copa do Mundo 2026"}</p>
                 </div>
               </div>
 
-              <h3>Jogos desta seleção</h3>
+              {selectedTeamInfo ? (
+                <>
+                  <p className="modal-note"><b>Técnico:</b> {selectedTeamInfo.coach}</p>
+                  <p>{selectedTeamInfo.profile}</p>
+                  <h3>Jogadores em destaque</h3>
+                  <div className="player-list">
+                    {selectedTeamInfo.players.map((player: any) => (
+                      <article key={player.name}>
+                        <strong>{player.name}</strong>
+                        <span>{player.position} · {player.club}</span>
+                        <p>{player.story}</p>
+                      </article>
+                    ))}
+                  </div>
+                </>
+              ) : (
+                <p className="modal-note">Informações editoriais deste time ainda serão adicionadas pelo coletor de conteúdo.</p>
+              )}
 
+              <h3>Jogos desta seleção</h3>
               <div className="modal-matches">
                 {selectedTeamMatches.map((match) => (
-                  <article key={match.id}>
+                  <article key={match.id} onClick={() => setSelectedMatch(match)}>
                     <span>{formatDate(match.utcDate)}</span>
                     <strong>{teamName(match.homeTeam)} x {teamName(match.awayTeam)}</strong>
                     <b>{score(match)}</b>
@@ -585,12 +517,6 @@ export default function WorldCupDashboard() {
                   </article>
                 ))}
               </div>
-
-              <p className="modal-note">
-                Escalação, técnico, autor do gol e história dos jogadores dependem de uma fonte
-                que envie eventos e elenco. A fonte atual mostra placares reais, calendário,
-                grupos, rodadas, escudos e status das partidas.
-              </p>
             </section>
           </div>
         )}
