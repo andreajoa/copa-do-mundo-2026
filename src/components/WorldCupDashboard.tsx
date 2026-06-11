@@ -237,7 +237,7 @@ export default function WorldCupDashboard() {
     <main className="wc-app">
       <aside className="sidebar">
         <div className="brand">
-          <img src="/world-cup-trophy-real.png" alt="" />
+          <img src="https://upload.wikimedia.org/wikipedia/commons/8/83/FIFA_World_Cup_Trophy.svg" alt="" />
           <strong>FIFA WORLD CUP<br />2026</strong>
         </div>
 
@@ -254,7 +254,7 @@ export default function WorldCupDashboard() {
         </div>
 
         <div className="side-card">
-          <img src="/world-cup-trophy-real.png" alt="" />
+          <img src="https://upload.wikimedia.org/wikipedia/commons/8/83/FIFA_World_Cup_Trophy.svg" alt="" />
           <h3>VIVA A EMOÇÃO DA COPA 2026!</h3>
           <p>O maior espetáculo do futebol mundial está chegando.</p>
           <button>SAIBA MAIS</button>
@@ -275,14 +275,14 @@ export default function WorldCupDashboard() {
               <p>11 DE JUNHO – 19 DE JULHO • EUA, CANADÁ E MÉXICO</p>
 
               <div className="countdown">
-                <div><strong>364</strong><span>DIAS</span></div>
-                <div><strong>12</strong><span>HORAS</span></div>
-                <div><strong>45</strong><span>MIN</span></div>
-                <div><strong>32</strong><span>SEG</span></div>
+                <div><strong>11</strong><span>JUN</span></div>
+                <div><strong>19</strong><span>JUL</span></div>
+                <div><strong>48</strong><span>SELEÇÕES</span></div>
+                <div><strong>16</strong><span>CIDADES</span></div>
               </div>
             </div>
 
-            <img className="hero-trophy" src="/world-cup-trophy-real.png" alt="Taça da Copa do Mundo" />
+            <img className="hero-trophy" src="https://upload.wikimedia.org/wikipedia/commons/8/83/FIFA_World_Cup_Trophy.svg" alt="Taça da Copa do Mundo" />
           </div>
         </header>
 
@@ -305,10 +305,10 @@ export default function WorldCupDashboard() {
         )}
 
         <div className="stats">
-          <div><span>⚽</span><small>JOGOS DA API</small><strong>{totalGames || "-"}</strong></div>
-          <div><span>👥</span><small>SELEÇÕES NA API</small><strong>{realTeams.length || "-"}</strong></div>
-          <div><span>✦</span><small>GRUPOS NA API</small><strong>{Object.keys(groups).length || "-"}</strong></div>
-          <div><span>🏟️</span><small>ESTÁDIOS NA API</small><strong>{realVenues.length || "-"}</strong></div>
+          <div><span>⚽</span><small>JOGOS</small><strong>{totalGames || "-"}</strong></div>
+          <div><span>👥</span><small>SELEÇÕES</small><strong>{realTeams.length || "-"}</strong></div>
+          <div><span>✦</span><small>GRUPOS</small><strong>{Object.keys(groups).length || "-"}</strong></div>
+          <div><span>🏟️</span><small>ESTÁDIOS</small><strong>{realVenues.length || "-"}</strong></div>
         </div>
 
         <div className="grid-main">
@@ -365,7 +365,7 @@ export default function WorldCupDashboard() {
               <tbody>
                 {standings.length === 0 && (
                   <tr>
-                    <td colSpan={6}>Classificação real ainda não disponível na API.</td>
+                    <td colSpan={6}>Classificação será atualizada quando a competição iniciar.</td>
                   </tr>
                 )}
 
@@ -385,7 +385,7 @@ export default function WorldCupDashboard() {
             <h2 className="mt">ARTILHEIROS</h2>
             <div className="scorers">
               {topScorers.length === 0 && (
-                <p className="muted">Artilharia real ainda não disponível na API.</p>
+                <p className="muted">Artilharia será atualizada quando os gols forem registrados.</p>
               )}
 
               {topScorers.slice(0, 5).map((item, i) => (
@@ -406,7 +406,7 @@ export default function WorldCupDashboard() {
             {["OITAVAS DE FINAL", "QUARTAS DE FINAL", "SEMIFINAIS", "FINAL"].map((stage, index) => (
               <div className="bracket-col" key={stage}>
                 <h3>{stage}</h3>
-                <div className="bracket-box">{index === 3 ? <img src="/world-cup-trophy-real.png" alt="" /> : "Vencedor"}</div>
+                <div className="bracket-box">{index === 3 ? <img src="https://upload.wikimedia.org/wikipedia/commons/8/83/FIFA_World_Cup_Trophy.svg" alt="" /> : "Vencedor"}</div>
                 <div className="bracket-box">{index === 3 ? "Final da Copa do Mundo 2026" : "Vencedor"}</div>
               </div>
             ))}
@@ -425,11 +425,11 @@ export default function WorldCupDashboard() {
                   {team.logo && <img className="mini-logo" src={team.logo} alt="" />} {team.name || team}
                   <span>★</span>
                 </h3>
-                <small>DADOS REAIS</small>
-                <p>Seleção presente nos jogos retornados pela API.</p>
+                <small>SELEÇÃO</small>
+                <p>Seleção presente no calendário oficial da Copa 2026.</p>
                 <div>
-                  <strong>API<br />Football</strong>
-                  <strong>STATUS<br />Real</strong>
+                  <strong>COPA<br />2026</strong>
+                  <strong>DADOS<br />REAIS</strong>
                 </div>
               </article>
             ))}

@@ -208,3 +208,27 @@ td:first-child { color: #19ff8a; font-weight: 900; }
 .side-card img {
   object-fit: contain;
 }
+
+.hero-trophy {
+  display: block !important;
+  width: min(430px, 34vw) !important;
+  height: auto !important;
+  min-height: 320px;
+  object-fit: contain !important;
+  filter: drop-shadow(0 0 45px rgba(255, 202, 43, .75)) drop-shadow(0 35px 70px rgba(0,0,0,.7));
+}
+
+.brand img {
+  background: transparent !important;
+}
+
+.side-card img {
+  background: radial-gradient(circle, rgba(255,199,64,.22), transparent 60%) !important;
+}
+
+@media (max-width: 1050px) {
+  .hero-trophy {
+    width: 260px !important;
+    min-height: 220px;
+  }
+}
