@@ -1,148 +1,74 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Trophy, Globe, MapPin } from "lucide-react";
+const sections = [
+  {
+    title: "Seleção Brasileira",
+    image: "https://images.unsplash.com/photo-1522778119026-d647f0596c20?q=80&w=900&auto=format&fit=crop",
+    text: "A Seleção Brasileira é a mais vitoriosa da história da Copa do Mundo, com 5 títulos: 1958, 1962, 1970, 1994 e 2002. Conhecida pelo futebol arte, revelou craques como Pelé, Ronaldo, Ronaldinho e Neymar.",
+  },
+  {
+    title: "Estádios Históricos",
+    image: "https://images.unsplash.com/photo-1522778526097-ce0a22ceb253?q=80&w=900&auto=format&fit=crop",
+    text: "A Copa de 2026 será disputada em grandes arenas dos Estados Unidos, Canadá e México. Será uma edição histórica, com estrutura moderna, grandes públicos e jogos espalhados por 16 cidades-sede.",
+  },
+  {
+    title: "48 Seleções",
+    image: "https://images.unsplash.com/photo-1518091043644-c1d4457512c6?q=80&w=900&auto=format&fit=crop",
+    text: "Pela primeira vez na história, a Copa do Mundo contará com 48 seleções. O novo formato aumenta a competitividade, abre espaço para novas histórias e torna o torneio ainda maior.",
+  },
+  {
+    title: "A Emoção da Copa",
+    image: "https://images.unsplash.com/photo-1517466787929-bc90951d0974?q=80&w=900&auto=format&fit=crop",
+    text: "Mais do que futebol, a Copa do Mundo reúne culturas, torcidas, rivalidades e momentos inesquecíveis. É o evento esportivo mais aguardado do planeta.",
+  },
+];
 
 export default function WorldCupDashboard() {
-  const [daysUntilCup, setDaysUntilCup] = useState(0);
-
-  useEffect(() => {
-    const cupDate = new Date("2026-06-11").getTime();
-    const now = new Date().getTime();
-    const distance = cupDate - now;
-    const days = Math.floor(distance / (1000 * 60 * 60 * 24));
-    setDaysUntilCup(days > 0 ? days : 0);
-  }, []);
-
   return (
-    <div className="min-h-screen bg-gradient-to-b from-black via-purple-900 to-teal-900">
-      {/* Hero Section com Taça */}
-      <div className="relative min-h-screen flex flex-col items-center justify-center px-4">
-        {/* Background com efeito */}
-        <div className="absolute inset-0 bg-gradient-to-br from-pink-600/30 via-purple-600/30 to-teal-600/30 blur-3xl" />
-        
-        {/* Taça Dourada */}
-        <div className="relative z-10 mb-12">
-          <div className="w-64 h-64 md:w-96 md:h-96 mx-auto relative">
-            <img
-              src="https://upload.wikimedia.org/wikipedia/commons/thumb/8/83/FIFA_World_Cup_Trophy.svg/1200px-FIFA_World_Cup_Trophy.svg.png"
-              alt="FIFA World Cup Trophy"
-              className="w-full h-full object-contain drop-shadow-2xl"
-              style={{
-                filter: "drop-shadow(0 0 30px rgba(255, 215, 0, 0.5))"
-              }}
-            />
-          </div>
+    <main className="world-page">
+      <section className="hero">
+        <div className="heroLights" />
+        <div className="trophyWrap">
+          <img
+            src="https://upload.wikimedia.org/wikipedia/commons/thumb/8/83/FIFA_World_Cup_Trophy.svg/1200px-FIFA_World_Cup_Trophy.svg.png"
+            alt="Taça da Copa do Mundo"
+            className="trophy"
+          />
         </div>
 
-        {/* Título Principal */}
-        <div className="relative z-10 text-center mb-8">
-          <h1 className="text-5xl md:text-7xl font-bold text-white mb-4 tracking-tight">
-            FIFA WORLD CUP
-          </h1>
-          <p className="text-2xl md:text-3xl text-white/90">
-            {daysUntilCup > 0 
-              ? `Começa em ${daysUntilCup} dias`
-              : "Começa em 11/06/2026 - Evento expirado"}
+        <div className="heroTitle">
+          <h1>FIFA WORLD CUP</h1>
+          <p>Começa em 11/06/2026</p>
+        </div>
+      </section>
+
+      <section className="content">
+        {sections.map((item, index) => (
+          <article
+            key={item.title}
+            className={`infoBlock ${index % 2 === 1 ? "reverse" : ""}`}
+          >
+            <div className="infoText">
+              <h2>{item.title}</h2>
+              <p>{item.text}</p>
+            </div>
+
+            <div className="imageCard">
+              <img src={item.image} alt={item.title} />
+            </div>
+          </article>
+        ))}
+
+        <section className="host">
+          <h2>Sede da Copa</h2>
+          <p>
+            A próxima Copa do Mundo será sediada pelos Estados Unidos, Canadá e México
+            em conjunto. A competição acontecerá em 2026 e será disputada em 16 cidades
+            destes três países. Serão 48 seleções participantes, tornando esta a maior
+            Copa do Mundo da história.
           </p>
-        </div>
-
-        {/* Conteúdo Principal */}
-        <div className="relative z-10 max-w-6xl mx-auto mt-16 space-y-24 pb-24">
-          {/* Seção Seleção Brasileira 1 */}
-          <div className="flex flex-col md:flex-row items-center gap-8">
-            <div className="flex-1 text-white">
-              <h2 className="text-3xl font-bold mb-4 text-purple-300">
-                Seleção Brasileira
-              </h2>
-              <p className="text-white/80 leading-relaxed">
-                A Seleção Brasileira é a mais vitoriosa da história da Copa do Mundo, 
-                com 5 títulos (1958, 1962, 1970, 1994 e 2002). Conhecida pelo seu futebol 
-                arte, revelou craques como Pelé, Ronaldo e Neymar. É a única seleção 
-                que participou de todas as Copas do Mundo.
-              </p>
-            </div>
-            <div className="flex-shrink-0">
-              <div className="w-72 h-48 bg-white/10 backdrop-blur-sm rounded-lg flex items-center justify-center border border-white/20">
-                <span className="text-white/40 text-2xl">300 × 200</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Seção Seleção Brasileira 2 */}
-          <div className="flex flex-col md:flex-row-reverse items-center gap-8">
-            <div className="flex-1 text-white">
-              <h2 className="text-3xl font-bold mb-4 text-purple-300">
-                Seleção Brasileira
-              </h2>
-              <p className="text-white/80 leading-relaxed">
-                A Seleção Brasileira é a mais vitoriosa da história da Copa do Mundo, 
-                com 5 títulos (1958, 1962, 1970, 1994 e 2002). Conhecida pelo seu futebol 
-                arte, revelou craques como Pelé, Ronaldo e Neymar. É a única seleção 
-                que participou de todas as Copas do Mundo.
-              </p>
-            </div>
-            <div className="flex-shrink-0">
-              <div className="w-72 h-48 bg-white/10 backdrop-blur-sm rounded-lg flex items-center justify-center border border-white/20">
-                <span className="text-white/40 text-2xl">300 × 200</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Seção Seleção Brasileira 3 */}
-          <div className="flex flex-col md:flex-row items-center gap-8">
-            <div className="flex-1 text-white">
-              <h2 className="text-3xl font-bold mb-4 text-purple-300">
-                Seleção Brasileira
-              </h2>
-              <p className="text-white/80 leading-relaxed">
-                A Seleção Brasileira é a mais vitoriosa da história da Copa do Mundo, 
-                com 5 títulos (1958, 1962, 1970, 1994 e 2002). Conhecida pelo seu futebol 
-                arte, revelou craques como Pelé, Ronaldo e Neymar. É a única seleção 
-                que participou de todas as Copas do Mundo.
-              </p>
-            </div>
-            <div className="flex-shrink-0">
-              <div className="w-72 h-48 bg-white/10 backdrop-blur-sm rounded-lg flex items-center justify-center border border-white/20">
-                <span className="text-white/40 text-2xl">300 × 200</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Seção Seleção Brasileira 4 */}
-          <div className="flex flex-col md:flex-row-reverse items-center gap-8">
-            <div className="flex-1 text-white">
-              <h2 className="text-3xl font-bold mb-4 text-purple-300">
-                Seleção Brasileira
-              </h2>
-              <p className="text-white/80 leading-relaxed">
-                A Seleção Brasileira é a mais vitoriosa da história da Copa do Mundo, 
-                com 5 títulos (1958, 1962, 1970, 1994 e 2002). Conhecida pelo seu futebol 
-                arte, revelou craques como Pelé, Ronaldo e Neymar. É a única seleção 
-                que participou de todas as Copas do Mundo.
-              </p>
-            </div>
-            <div className="flex-shrink-0">
-              <div className="w-72 h-48 bg-white/10 backdrop-blur-sm rounded-lg flex items-center justify-center border border-white/20">
-                <span className="text-white/40 text-2xl">300 × 200</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Seção Sede da Copa */}
-          <div className="text-center text-white mt-24">
-            <h2 className="text-3xl font-bold mb-6 text-teal-300">
-              Sede da Copa
-            </h2>
-            <p className="text-white/80 leading-relaxed max-w-4xl mx-auto">
-              A próxima Copa do Mundo será sediada pelos Estados Unidos, Canadá e México 
-              em conjunto. A competição acontecerá em 2026 e será disputada em 16 cidades 
-              destes três países. Serão 48 seleções participantes, o que torna a Copa 
-              do Mundo de 2026 a primeira da história com esse número de seleções.
-            </p>
-          </div>
-        </div>
-      </div>
-    </div>
+        </section>
+      </section>
+    </main>
   );
 }
