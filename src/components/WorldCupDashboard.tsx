@@ -28,20 +28,20 @@ type GoalAlert = {
   story: string;
 };
 
-const featuredTeams = [
-  { name: "Brasil", flag: "🇧🇷", coach: "Dorival Júnior", ranking: "3º", titles: 5 },
-  { name: "França", flag: "🇫🇷", coach: "Didier Deschamps", ranking: "2º", titles: 2 },
-  { name: "Argentina", flag: "🇦🇷", coach: "Lionel Scaloni", ranking: "1º", titles: 3 },
-  { name: "Portugal", flag: "🇵🇹", coach: "Roberto Martínez", ranking: "6º", titles: 0 },
-];
+const featuredFallback: string[] = [];
 
-const scorers = [
-  ["H. Lozano", "México", 3],
-  ["G. Martin", "México", 2],
-  ["J. David", "Canadá", 2],
-  ["F. Valverde", "Uruguai", 1],
-  ["K. Mbappé", "França", 1],
-];
+type StandingRow = {
+  rank: number;
+  team: { name: string; logo?: string };
+  all: { played: number; win: number; draw: number; lose: number };
+  goalsDiff: number;
+  points: number;
+};
+
+type TopScorer = {
+  player: { name: string; photo?: string };
+  statistics: { team: { name: string; logo?: string }; goals: { total: number } }[];
+};
 
 function mapFootballDataToFixture(match: any): Fixture {
   return {
@@ -112,6 +112,28 @@ export default function WorldCupDashboard() {
   const [fixtures, setFixtures] = useState<Fixture[]>([]);
   const [loading, setLoading] = useState(true);
   const [goalAlerts, setGoalAlerts] = useState<GoalAlert[]>([]);
+  const [standings, setStandings] = useState<StandingRow[]>([]);
+  const [topScorers, setTopScorers] = useState<TopScorer[]>([]);
+
+  async function loadExtraRealData() {
+    try {
+      const [standingsResponse, scorersResponse] = await Promise.all([
+        fetch("/api/api-football/standings", { cache: "no-store" }),
+        fetch("/api/api-football/topscorers", { cache: "no-store" }),
+      ]);
+
+      const standingsData = await standingsResponse.json();
+      const scorersData = await scorersResponse.json();
+
+      const firstLeague = standingsData.response?.[0]?.league?.standings?.[0] || [];
+      setStandings(firstLeague);
+
+      setTopScorers(scorersData.response || []);
+    } catch {
+      setStandings([]);
+      setTopScorers([]);
+    }
+  }
 
   async function loadFixtures() {
     try {
@@ -173,13 +195,31 @@ export default function WorldCupDashboard() {
 
   useEffect(() => {
     loadFixtures();
+    loadExtraRealData();
+
     const interval = window.setInterval(loadFixtures, 20000);
-    return () => window.clearInterval(interval);
+    const extraInterval = window.setInterval(loadExtraRealData, 60000);
+
+    return () => {
+      window.clearInterval(interval);
+      window.clearInterval(extraInterval);
+    };
   }, []);
 
   const liveFixtures = fixtures.filter(isLive);
   const upcomingFixtures = fixtures.filter((fixture) => !isLive(fixture)).slice(0, 6);
-  const totalGames = fixtures.length || 104;
+  const totalGames = fixtures.length;
+  const realTeams = Array.from(
+    new Map(
+      fixtures
+        .flatMap((fixture) => [fixture.teams.home, fixture.teams.away])
+        .filter((team) => team?.name && team.name !== "A definir")
+        .map((team) => [team.name, team])
+    ).values()
+  );
+  const realVenues = Array.from(
+    new Set(fixtures.map((fixture) => fixture.venue?.name).filter(Boolean))
+  );
 
   const groups = useMemo(() => {
     return fixtures.reduce<Record<string, Fixture[]>>((acc, fixture) => {
@@ -197,7 +237,7 @@ export default function WorldCupDashboard() {
     <main className="wc-app">
       <aside className="sidebar">
         <div className="brand">
-          <img src="/world-cup-trophy.svg" alt="" />
+          <img src="/world-cup-trophy-real.png" alt="" />
           <strong>FIFA WORLD CUP<br />2026</strong>
         </div>
 
@@ -214,7 +254,7 @@ export default function WorldCupDashboard() {
         </div>
 
         <div className="side-card">
-          <img src="/world-cup-trophy.svg" alt="" />
+          <img src="/world-cup-trophy-real.png" alt="" />
           <h3>VIVA A EMOÇÃO DA COPA 2026!</h3>
           <p>O maior espetáculo do futebol mundial está chegando.</p>
           <button>SAIBA MAIS</button>
@@ -242,7 +282,7 @@ export default function WorldCupDashboard() {
               </div>
             </div>
 
-            <img className="hero-trophy" src="/world-cup-trophy.svg" alt="Taça da Copa do Mundo" />
+            <img className="hero-trophy" src="/world-cup-trophy-real.png" alt="Taça da Copa do Mundo" />
           </div>
         </header>
 
@@ -265,10 +305,10 @@ export default function WorldCupDashboard() {
         )}
 
         <div className="stats">
-          <div><span>⚽</span><small>JOGOS</small><strong>{totalGames}</strong></div>
-          <div><span>👥</span><small>SELEÇÕES</small><strong>48</strong></div>
-          <div><span>✦</span><small>GRUPOS</small><strong>12</strong></div>
-          <div><span>🏟️</span><small>ESTÁDIOS</small><strong>16</strong></div>
+          <div><span>⚽</span><small>JOGOS DA API</small><strong>{totalGames || "-"}</strong></div>
+          <div><span>👥</span><small>SELEÇÕES NA API</small><strong>{realTeams.length || "-"}</strong></div>
+          <div><span>✦</span><small>GRUPOS NA API</small><strong>{Object.keys(groups).length || "-"}</strong></div>
+          <div><span>🏟️</span><small>ESTÁDIOS NA API</small><strong>{realVenues.length || "-"}</strong></div>
         </div>
 
         <div className="grid-main">
@@ -280,7 +320,11 @@ export default function WorldCupDashboard() {
 
             {loading && <p className="muted">Carregando jogos...</p>}
 
-            {(liveFixtures.length ? liveFixtures : fixtures.slice(0, 2)).map((fixture) => (
+            {liveFixtures.length === 0 && (
+              <p className="muted">Nenhum jogo ao vivo neste momento.</p>
+            )}
+
+            {liveFixtures.map((fixture) => (
               <article className="live-match" key={fixture.id}>
                 <small>{fixture.league.round || "Grupo"}</small>
                 <strong className="elapsed">
@@ -319,17 +363,37 @@ export default function WorldCupDashboard() {
             <table>
               <thead><tr><th>#</th><th>SELEÇÃO</th><th>J</th><th>V</th><th>SG</th><th>PTS</th></tr></thead>
               <tbody>
-                {["México","Suíça","Coreia do Sul","África do Sul"].map((team, i) => (
-                  <tr key={team}><td>{i + 1}</td><td>{team}</td><td>1</td><td>{i < 2 ? 1 : 0}</td><td>{i === 0 ? "+2" : i === 1 ? "+1" : "-1"}</td><td>{i < 2 ? 3 : 0}</td></tr>
+                {standings.length === 0 && (
+                  <tr>
+                    <td colSpan={6}>Classificação real ainda não disponível na API.</td>
+                  </tr>
+                )}
+
+                {standings.slice(0, 8).map((row) => (
+                  <tr key={row.team.name}>
+                    <td>{row.rank}</td>
+                    <td>{row.team.logo && <img className="mini-logo" src={row.team.logo} alt="" />} {row.team.name}</td>
+                    <td>{row.all.played}</td>
+                    <td>{row.all.win}</td>
+                    <td>{row.goalsDiff}</td>
+                    <td>{row.points}</td>
+                  </tr>
                 ))}
               </tbody>
             </table>
 
             <h2 className="mt">ARTILHEIROS</h2>
             <div className="scorers">
-              {scorers.map((item, i) => (
-                <div key={item[0]}>
-                  <b>{i + 1}</b><span>{item[0]}</span><small>{item[1]}</small><strong>{item[2]}</strong>
+              {topScorers.length === 0 && (
+                <p className="muted">Artilharia real ainda não disponível na API.</p>
+              )}
+
+              {topScorers.slice(0, 5).map((item, i) => (
+                <div key={item.player.name}>
+                  <b>{i + 1}</b>
+                  <span>{item.player.photo && <img className="avatar" src={item.player.photo} alt="" />} {item.player.name}</span>
+                  <small>{item.statistics?.[0]?.team?.name || "-"}</small>
+                  <strong>{item.statistics?.[0]?.goals?.total || 0}</strong>
                 </div>
               ))}
             </div>
@@ -342,7 +406,7 @@ export default function WorldCupDashboard() {
             {["OITAVAS DE FINAL", "QUARTAS DE FINAL", "SEMIFINAIS", "FINAL"].map((stage, index) => (
               <div className="bracket-col" key={stage}>
                 <h3>{stage}</h3>
-                <div className="bracket-box">{index === 3 ? <img src="/world-cup-trophy.svg" alt="" /> : "Vencedor"}</div>
+                <div className="bracket-box">{index === 3 ? <img src="/world-cup-trophy-real.png" alt="" /> : "Vencedor"}</div>
                 <div className="bracket-box">{index === 3 ? "Final da Copa do Mundo 2026" : "Vencedor"}</div>
               </div>
             ))}
@@ -355,14 +419,17 @@ export default function WorldCupDashboard() {
             <a>Ver todas ›</a>
           </div>
           <div className="teams-grid">
-            {featuredTeams.map((team) => (
-              <article className="team-card" key={team.name}>
-                <h3>{team.flag} {team.name} <span>★</span></h3>
-                <small>TÉCNICO</small>
-                <p>{team.coach}</p>
+            {(realTeams.length ? realTeams.slice(0, 8) : featuredFallback).map((team: any) => (
+              <article className="team-card" key={team.name || team}>
+                <h3>
+                  {team.logo && <img className="mini-logo" src={team.logo} alt="" />} {team.name || team}
+                  <span>★</span>
+                </h3>
+                <small>DADOS REAIS</small>
+                <p>Seleção presente nos jogos retornados pela API.</p>
                 <div>
-                  <strong>RANKING FIFA<br />{team.ranking}</strong>
-                  <strong>TÍTULOS<br />{team.titles}</strong>
+                  <strong>API<br />Football</strong>
+                  <strong>STATUS<br />Real</strong>
                 </div>
               </article>
             ))}

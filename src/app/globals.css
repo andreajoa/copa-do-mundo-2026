@@ -177,3 +177,34 @@ td:first-child { color: #19ff8a; font-weight: 900; }
   .countdown { flex-wrap: wrap; }
   .score-row { grid-template-columns: 1fr; }
 }
+
+.mini-logo {
+  width: 22px;
+  height: 22px;
+  object-fit: contain;
+  vertical-align: middle;
+  margin-right: 8px;
+}
+
+.avatar {
+  width: 28px;
+  height: 28px;
+  object-fit: cover;
+  border-radius: 999px;
+  vertical-align: middle;
+  margin-right: 8px;
+}
+
+.hero-trophy {
+  object-fit: contain;
+  max-height: 390px;
+  background: transparent;
+}
+
+.brand img {
+  object-fit: contain;
+}
+
+.side-card img {
+  object-fit: contain;
+}
