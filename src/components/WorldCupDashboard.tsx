@@ -242,7 +242,7 @@ export default function WorldCupDashboard() {
     <main className="wc-app">
       <aside className="sidebar">
         <a className="brand" href="#inicio">
-          <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/8/83/FIFA_World_Cup_Trophy.svg/640px-FIFA_World_Cup_Trophy.svg.png" alt="Taça da Copa" />
+          <img src="/world-cup-trophy-real.svg" alt="Taça da Copa" />
           <strong>
             WORLD CUP
             <br />
@@ -260,7 +260,7 @@ export default function WorldCupDashboard() {
         </nav>
 
         <div className="side-card">
-          <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/8/83/FIFA_World_Cup_Trophy.svg/640px-FIFA_World_Cup_Trophy.svg.png" alt="Taça da Copa" />
+          <img src="/world-cup-trophy-real.svg" alt="Taça da Copa" />
           <h3>Copa do Mundo 2026</h3>
           <p>Estados Unidos, Canadá e México recebem o maior torneio da história.</p>
         </div>
@@ -293,7 +293,7 @@ export default function WorldCupDashboard() {
             </div>
           </div>
 
-          <img className="hero-trophy" src="https://upload.wikimedia.org/wikipedia/commons/thumb/8/83/FIFA_World_Cup_Trophy.svg/640px-FIFA_World_Cup_Trophy.svg.png" alt="Taça da Copa do Mundo" />
+          <img className="hero-trophy" src="/world-cup-trophy-real.svg" alt="Taça da Copa do Mundo" />
         </section>
 
         {goalAlerts.length > 0 && (

@@ -1,0 +1,21 @@
+<svg width="420" height="620" viewBox="0 0 420 620" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <radialGradient id="gold" cx="45%" cy="20%" r="75%">
+      <stop offset="0%" stop-color="#fff7b0"/>
+      <stop offset="25%" stop-color="#ffd84a"/>
+      <stop offset="55%" stop-color="#d99a18"/>
+      <stop offset="100%" stop-color="#6d3d05"/>
+    </radialGradient>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="8" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+  <path d="M210 35c-61 0-111 50-111 111 0 47 29 87 70 103-7 55-32 99-72 134-23 20-33 50-25 79 8 31 35 52 67 52h142c32 0 59-21 67-52 8-29-2-59-25-79-40-35-65-79-72-134 41-16 70-56 70-103 0-61-50-111-111-111z" fill="url(#gold)" filter="url(#glow)"/>
+  <path d="M100 130c-43 5-75 42-75 88 0 57 44 99 106 106l17-42c-40-2-71-27-71-64 0-22 12-40 32-49l-9-39z" fill="url(#gold)"/>
+  <path d="M320 130c43 5 75 42 75 88 0 57-44 99-106 106l-17-42c40-2 71-27 71-64 0-22-12-40-32-49l9-39z" fill="url(#gold)"/>
+  <path d="M155 515h110l24 63H131l24-63z" fill="url(#gold)"/>
+  <rect x="105" y="570" width="210" height="32" rx="5" fill="#d89a16"/>
+  <rect x="135" y="540" width="150" height="34" rx="4" fill="#0b8b46"/>
+  <ellipse cx="210" cy="146" rx="58" ry="78" fill="rgba(255,255,255,.18)"/>
+</svg>
