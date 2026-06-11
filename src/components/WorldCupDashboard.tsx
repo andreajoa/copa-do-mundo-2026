@@ -54,19 +54,78 @@ export default function WorldCupDashboard() {
   const [loading, setLoading] = useState(true);
   const [selectedStage, setSelectedStage] = useState("Todos");
   const [selectedTeam, setSelectedTeam] = useState<string | null>(null);
+  const [goalAlerts, setGoalAlerts] = useState<
+    { id: string; match: string; score: string; detectedAt: string; scorer: string; story: string }[]
+  >([]);
 
   useEffect(() => {
     async function loadMatches() {
       try {
         const response = await fetch("/api/matches", { cache: "no-store" });
         const data = await response.json();
-        setMatches(data.matches || []);
+        const nextMatches: ApiMatch[] = data.matches || [];
+
+        setMatches((previousMatches) => {
+          if (previousMatches.length > 0) {
+            const alerts: {
+              id: string;
+              match: string;
+              score: string;
+              detectedAt: string;
+              scorer: string;
+              story: string;
+            }[] = [];
+
+            nextMatches.forEach((nextMatch) => {
+              const previousMatch = previousMatches.find((item) => item.id === nextMatch.id);
+
+              if (!previousMatch) return;
+
+              const previousHome = previousMatch.score?.fullTime?.home ?? 0;
+              const previousAway = previousMatch.score?.fullTime?.away ?? 0;
+              const nextHome = nextMatch.score?.fullTime?.home ?? 0;
+              const nextAway = nextMatch.score?.fullTime?.away ?? 0;
+
+              if (nextHome > previousHome || nextAway > previousAway) {
+                const scoringTeam =
+                  nextHome > previousHome
+                    ? nextMatch.homeTeam?.name || "Time da casa"
+                    : nextMatch.awayTeam?.name || "Time visitante";
+
+                alerts.unshift({
+                  id: `${nextMatch.id}-${Date.now()}`,
+                  match: `${nextMatch.homeTeam?.shortName || nextMatch.homeTeam?.name || "Casa"} x ${
+                    nextMatch.awayTeam?.shortName || nextMatch.awayTeam?.name || "Visitante"
+                  }`,
+                  score: `${nextHome} x ${nextAway}`,
+                  detectedAt: new Intl.DateTimeFormat("pt-BR", {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                    second: "2-digit",
+                  }).format(new Date()),
+                  scorer: "Autor do gol aguardando atualização da API",
+                  story: `Gol detectado para ${scoringTeam}. A API atual confirmou a mudança no placar, mas não enviou o nome do jogador nem o minuto oficial do gol.`,
+                });
+              }
+            });
+
+            if (alerts.length > 0) {
+              setGoalAlerts((current) => [...alerts, ...current].slice(0, 6));
+            }
+          }
+
+          return nextMatches;
+        });
       } finally {
         setLoading(false);
       }
     }
 
     loadMatches();
+
+    const interval = window.setInterval(loadMatches, 20000);
+
+    return () => window.clearInterval(interval);
   }, []);
 
   const filteredMatches = useMemo(() => {
@@ -111,6 +170,29 @@ export default function WorldCupDashboard() {
       </section>
 
       <section className="dashboard">
+        {goalAlerts.length > 0 && (
+          <div className="goal-alerts">
+            {goalAlerts.map((goal) => (
+              <div className="goal-alert" key={goal.id}>
+                <div>
+                  <strong>⚽ GOL DETECTADO</strong>
+                  <h3>{goal.match}</h3>
+                  <p>Placar: {goal.score} · Detectado às {goal.detectedAt}</p>
+                </div>
+
+                <button className="goal-tooltip">
+                  Ver autor
+                  <span>
+                    <b>{goal.scorer}</b>
+                    <br />
+                    {goal.story}
+                  </span>
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
         <div className="section-title">
           <span>Tempo real</span>
           <h2>Jogos ao vivo</h2>
