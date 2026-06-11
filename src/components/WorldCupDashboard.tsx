@@ -2,101 +2,91 @@
 
 import { useEffect, useMemo, useState } from "react";
 
-type Fixture = {
+type Team = {
+  id?: number;
+  name?: string;
+  shortName?: string;
+  tla?: string;
+  crest?: string;
+};
+
+type Match = {
   id: number;
-  date: string;
-  status: {
-    short: string;
-    long: string;
-    elapsed?: number | null;
+  utcDate: string;
+  status: string;
+  matchday?: number;
+  stage?: string;
+  group?: string;
+  lastUpdated?: string;
+  venue?: string | null;
+  homeTeam?: Team;
+  awayTeam?: Team;
+  score?: {
+    winner?: string | null;
+    fullTime?: { home?: number | null; away?: number | null };
+    halfTime?: { home?: number | null; away?: number | null };
   };
-  teams: {
-    home: { name: string; logo?: string; winner?: boolean | null };
-    away: { name: string; logo?: string; winner?: boolean | null };
+  referees?: { name?: string; nationality?: string; type?: string }[];
+};
+
+const navItems = [
+  { id: "inicio", label: "Início", icon: "⌂" },
+  { id: "ao-vivo", label: "Jogos ao vivo", icon: "●" },
+  { id: "calendario", label: "Calendário", icon: "▦" },
+  { id: "grupos", label: "Grupos", icon: "☷" },
+  { id: "mata-mata", label: "Mata-mata", icon: "✣" },
+  { id: "selecoes", label: "Seleções", icon: "♛" },
+  { id: "resultados", label: "Resultados", icon: "✓" },
+];
+
+function stageLabel(stage?: string) {
+  const map: Record<string, string> = {
+    GROUP_STAGE: "Fase de grupos",
+    LAST_16: "Oitavas de final",
+    QUARTER_FINALS: "Quartas de final",
+    SEMI_FINALS: "Semifinais",
+    THIRD_PLACE: "Disputa de 3º lugar",
+    FINAL: "Final",
   };
-  goals: { home: number | null; away: number | null };
-  league: { round?: string };
-  venue?: { name?: string; city?: string };
-};
 
-type GoalAlert = {
-  id: string;
-  match: string;
-  score: string;
-  detectedAt: string;
-  scorer: string;
-  story: string;
-};
-
-const featuredFallback: string[] = [];
-
-type StandingRow = {
-  rank: number;
-  team: { name: string; logo?: string };
-  all: { played: number; win: number; draw: number; lose: number };
-  goalsDiff: number;
-  points: number;
-};
-
-type TopScorer = {
-  player: { name: string; photo?: string };
-  statistics: { team: { name: string; logo?: string }; goals: { total: number } }[];
-};
-
-function mapFootballDataToFixture(match: any): Fixture {
-  return {
-    id: match.id,
-    date: match.utcDate,
-    status: {
-      short: match.status,
-      long: match.status,
-      elapsed: null,
-    },
-    teams: {
-      home: {
-        name: match.homeTeam?.shortName || match.homeTeam?.name || "A definir",
-        logo: match.homeTeam?.crest,
-      },
-      away: {
-        name: match.awayTeam?.shortName || match.awayTeam?.name || "A definir",
-        logo: match.awayTeam?.crest,
-      },
-    },
-    goals: {
-      home: match.score?.fullTime?.home ?? null,
-      away: match.score?.fullTime?.away ?? null,
-    },
-    league: {
-      round: `${match.group || "Grupo"} · Rodada ${match.matchday || "-"}`,
-    },
-    venue: { name: match.venue || "" },
-  };
+  return map[stage || ""] || stage || "A definir";
 }
 
-function normalizeFixture(item: any): Fixture {
-  if (item.fixture && item.teams) {
-    return {
-      id: item.fixture.id,
-      date: item.fixture.date,
-      status: item.fixture.status,
-      teams: item.teams,
-      goals: item.goals,
-      league: item.league,
-      venue: item.fixture.venue,
-    };
-  }
-
-  return mapFootballDataToFixture(item);
+function groupLabel(group?: string) {
+  if (!group) return "Sem grupo";
+  return group.replace("GROUP_", "Grupo ");
 }
 
-function isLive(fixture: Fixture) {
-  return ["1H", "2H", "HT", "ET", "P", "LIVE", "IN_PLAY", "PAUSED"].includes(
-    fixture.status.short
-  );
+function statusLabel(status?: string) {
+  const map: Record<string, string> = {
+    SCHEDULED: "Agendado",
+    TIMED: "Agendado",
+    IN_PLAY: "Ao vivo",
+    PAUSED: "Intervalo",
+    FINISHED: "Encerrado",
+    POSTPONED: "Adiado",
+    SUSPENDED: "Suspenso",
+    CANCELED: "Cancelado",
+  };
+
+  return map[status || ""] || status || "A definir";
 }
 
-function formatDate(value: string) {
+function teamName(team?: Team) {
+  return team?.shortName || team?.name || "A definir";
+}
+
+function score(match: Match) {
+  const home = match.score?.fullTime?.home;
+  const away = match.score?.fullTime?.away;
+  return `${home ?? "-"} - ${away ?? "-"}`;
+}
+
+function formatDate(value?: string) {
+  if (!value) return "A definir";
+
   return new Intl.DateTimeFormat("pt-BR", {
+    timeZone: "America/Sao_Paulo",
     day: "2-digit",
     month: "short",
     hour: "2-digit",
@@ -104,80 +94,58 @@ function formatDate(value: string) {
   }).format(new Date(value));
 }
 
-function score(fixture: Fixture) {
-  return `${fixture.goals.home ?? "-"} - ${fixture.goals.away ?? "-"}`;
+function isLive(match: Match) {
+  return ["IN_PLAY", "PAUSED"].includes(match.status);
 }
 
 export default function WorldCupDashboard() {
-  const [fixtures, setFixtures] = useState<Fixture[]>([]);
+  const [matches, setMatches] = useState<Match[]>([]);
   const [loading, setLoading] = useState(true);
-  const [goalAlerts, setGoalAlerts] = useState<GoalAlert[]>([]);
-  const [standings, setStandings] = useState<StandingRow[]>([]);
-  const [topScorers, setTopScorers] = useState<TopScorer[]>([]);
+  const [activeStage, setActiveStage] = useState("ALL");
+  const [selectedTeam, setSelectedTeam] = useState<Team | null>(null);
+  const [goalAlerts, setGoalAlerts] = useState<
+    { id: string; match: string; score: string; time: string }[]
+  >([]);
 
-  async function loadExtraRealData() {
+  async function loadMatches() {
     try {
-      const [standingsResponse, scorersResponse] = await Promise.all([
-        fetch("/api/api-football/standings", { cache: "no-store" }),
-        fetch("/api/api-football/topscorers", { cache: "no-store" }),
-      ]);
+      const response = await fetch("/api/live-worldcup", { cache: "no-store" });
+      const data = await response.json();
+      const nextMatches: Match[] = data.matches || [];
 
-      const standingsData = await standingsResponse.json();
-      const scorersData = await scorersResponse.json();
-
-      const firstLeague = standingsData.response?.[0]?.league?.standings?.[0] || [];
-      setStandings(firstLeague);
-
-      setTopScorers(scorersData.response || []);
-    } catch {
-      setStandings([]);
-      setTopScorers([]);
-    }
-  }
-
-  async function loadFixtures() {
-    try {
-      const oldApi = await fetch("/api/matches", { cache: "no-store" });
-      const oldData = await oldApi.json();
-      const nextFixtures: Fixture[] = (oldData.matches || []).map(normalizeFixture);
-
-      setFixtures((previous) => {
+      setMatches((previous) => {
         if (previous.length > 0) {
-          const alerts: GoalAlert[] = [];
+          const alerts: { id: string; match: string; score: string; time: string }[] = [];
 
-          nextFixtures.forEach((next) => {
+          nextMatches.forEach((next) => {
             const old = previous.find((item) => item.id === next.id);
             if (!old) return;
 
-            const oldHome = old.goals.home ?? 0;
-            const oldAway = old.goals.away ?? 0;
-            const nextHome = next.goals.home ?? 0;
-            const nextAway = next.goals.away ?? 0;
+            const oldHome = old.score?.fullTime?.home ?? 0;
+            const oldAway = old.score?.fullTime?.away ?? 0;
+            const newHome = next.score?.fullTime?.home ?? 0;
+            const newAway = next.score?.fullTime?.away ?? 0;
 
-            if (nextHome > oldHome || nextAway > oldAway) {
-              const scoringTeam = nextHome > oldHome ? next.teams.home.name : next.teams.away.name;
-
+            if (newHome > oldHome || newAway > oldAway) {
               alerts.unshift({
                 id: `${next.id}-${Date.now()}`,
-                match: `${next.teams.home.name} x ${next.teams.away.name}`,
-                score: `${nextHome} - ${nextAway}`,
-                detectedAt: new Intl.DateTimeFormat("pt-BR", {
+                match: `${teamName(next.homeTeam)} x ${teamName(next.awayTeam)}`,
+                score: `${newHome} - ${newAway}`,
+                time: new Intl.DateTimeFormat("pt-BR", {
                   hour: "2-digit",
                   minute: "2-digit",
                   second: "2-digit",
                 }).format(new Date()),
-                scorer: "Autor aguardando evento da API",
-                story: `Gol detectado para ${scoringTeam}. Quando o endpoint de eventos estiver conectado, aqui aparecerá o jogador, minuto oficial e assistência.`,
               });
             }
           });
 
-          if (alerts.length) {
+          if (alerts.length > 0) {
             setGoalAlerts((current) => [...alerts, ...current].slice(0, 4));
           }
         }
 
-        return nextFixtures;
+        return nextMatches;
       });
     } finally {
       setLoading(false);
@@ -185,244 +153,390 @@ export default function WorldCupDashboard() {
   }
 
   useEffect(() => {
-    loadFixtures();
-    const interval = window.setInterval(loadFixtures, 20000);
-
-    return () => {
-      window.clearInterval(interval);
-    };
+    loadMatches();
+    const interval = window.setInterval(loadMatches, 20000);
+    return () => window.clearInterval(interval);
   }, []);
 
-  const liveFixtures = fixtures.filter(isLive);
-  const upcomingFixtures = fixtures.filter((fixture) => !isLive(fixture)).slice(0, 6);
-  const totalGames = fixtures.length;
-  const realTeams = Array.from(
-    new Map(
-      fixtures
-        .flatMap((fixture) => [fixture.teams.home, fixture.teams.away])
-        .filter((team) => team?.name && team.name !== "A definir")
-        .map((team) => [team.name, team])
-    ).values()
+  const liveMatches = matches.filter(isLive);
+  const finishedMatches = matches.filter((match) => match.status === "FINISHED");
+  const upcomingMatches = matches.filter((match) =>
+    ["SCHEDULED", "TIMED"].includes(match.status)
   );
-  const realVenues = Array.from(
-    new Set(fixtures.map((fixture) => fixture.venue?.name).filter(Boolean))
-  );
+
+  const stageMatches = useMemo(() => {
+    if (activeStage === "ALL") return matches;
+    return matches.filter((match) => match.stage === activeStage);
+  }, [matches, activeStage]);
 
   const groups = useMemo(() => {
-    return fixtures.reduce<Record<string, Fixture[]>>((acc, fixture) => {
-      const round = fixture.league.round || "Grupo A";
-      const key = round.includes("Group") ? round : round.split(" - ")[0] || "Grupo A";
-      acc[key] ||= [];
-      acc[key].push(fixture);
-      return acc;
-    }, {});
-  }, [fixtures]);
+    const result: Record<string, { teams: Team[]; matches: Match[] }> = {};
 
-  const firstLive = liveFixtures[0] || fixtures[0];
+    matches.forEach((match) => {
+      const key = groupLabel(match.group);
+      result[key] ||= { teams: [], matches: [] };
+      result[key].matches.push(match);
+
+      [match.homeTeam, match.awayTeam].forEach((team) => {
+        if (!team?.name) return;
+        if (!result[key].teams.some((item) => item.name === team.name)) {
+          result[key].teams.push(team);
+        }
+      });
+    });
+
+    return result;
+  }, [matches]);
+
+  const teams = useMemo(() => {
+    const map = new Map<string, Team>();
+
+    matches.forEach((match) => {
+      [match.homeTeam, match.awayTeam].forEach((team) => {
+        if (team?.name) map.set(team.name, team);
+      });
+    });
+
+    return Array.from(map.values()).sort((a, b) =>
+      (a.name || "").localeCompare(b.name || "")
+    );
+  }, [matches]);
+
+  const selectedTeamMatches = selectedTeam
+    ? matches.filter(
+        (match) =>
+          match.homeTeam?.name === selectedTeam.name ||
+          match.awayTeam?.name === selectedTeam.name
+      )
+    : [];
+
+  const knockoutStages = ["LAST_16", "QUARTER_FINALS", "SEMI_FINALS", "FINAL"];
 
   return (
     <main className="wc-app">
       <aside className="sidebar">
-        <div className="brand">
-          <img src="https://upload.wikimedia.org/wikipedia/commons/8/83/FIFA_World_Cup_Trophy.svg" alt="" />
-          <strong>FIFA WORLD CUP<br />2026</strong>
-        </div>
+        <a className="brand" href="#inicio">
+          <img src="/world-cup-trophy-real.png" alt="Taça da Copa" />
+          <strong>
+            WORLD CUP
+            <br />
+            2026
+          </strong>
+        </a>
 
-        {["Início", "Jogos Ao Vivo", "Grupos", "Tabela Geral", "Mata-Mata", "Seleções", "Jogadores", "Estatísticas", "Estádios", "Notícias", "Favoritos"].map((item, index) => (
-          <button className={index === 0 ? "nav active" : "nav"} key={item}>
-            <span>{["⌂","◉","▦","☷","✣","♛","♙","▥","⌑","▤","★"][index]}</span>
-            {item}
-          </button>
-        ))}
-
-        <div className="favorite">
-          <small>SELEÇÃO FAVORITA</small>
-          <div>🇧🇷 Brasil <span>★</span></div>
-        </div>
+        <nav>
+          {navItems.map((item) => (
+            <a className="nav" href={`#${item.id}`} key={item.id}>
+              <span>{item.icon}</span>
+              {item.label}
+            </a>
+          ))}
+        </nav>
 
         <div className="side-card">
-          <img src="https://upload.wikimedia.org/wikipedia/commons/8/83/FIFA_World_Cup_Trophy.svg" alt="" />
-          <h3>VIVA A EMOÇÃO DA COPA 2026!</h3>
-          <p>O maior espetáculo do futebol mundial está chegando.</p>
-          <button>SAIBA MAIS</button>
+          <img src="/world-cup-trophy-real.png" alt="Taça da Copa" />
+          <h3>Copa do Mundo 2026</h3>
+          <p>Estados Unidos, Canadá e México recebem o maior torneio da história.</p>
         </div>
       </aside>
 
       <section className="main">
-        <header className="hero">
-          <div className="top-actions">
-            <button>Fuso horário</button>
-            <button>São Paulo (GMT-3)</button>
-            <button>🔔</button>
-          </div>
+        <section className="hero" id="inicio">
+          <div className="hero-copy">
+            <span>Dashboard em tempo real</span>
+            <h1>COPA DO MUNDO 2026</h1>
+            <p>Jogos, placares, grupos, rodadas, mata-mata e seleções.</p>
 
-          <div className="hero-content">
-            <div>
-              <h1>COPA DO<br />MUNDO 2026</h1>
-              <p>11 DE JUNHO – 19 DE JULHO • EUA, CANADÁ E MÉXICO</p>
-
-              <div className="countdown">
-                <div><strong>11</strong><span>JUN</span></div>
-                <div><strong>19</strong><span>JUL</span></div>
-                <div><strong>48</strong><span>SELEÇÕES</span></div>
-                <div><strong>16</strong><span>CIDADES</span></div>
+            <div className="facts">
+              <div>
+                <strong>11 JUN</strong>
+                <small>Início</small>
+              </div>
+              <div>
+                <strong>19 JUL</strong>
+                <small>Final</small>
+              </div>
+              <div>
+                <strong>48</strong>
+                <small>Seleções</small>
+              </div>
+              <div>
+                <strong>16</strong>
+                <small>Cidades</small>
               </div>
             </div>
-
-            <img className="hero-trophy" src="https://upload.wikimedia.org/wikipedia/commons/8/83/FIFA_World_Cup_Trophy.svg" alt="Taça da Copa do Mundo" />
           </div>
-        </header>
+
+          <img className="hero-trophy" src="/world-cup-trophy-real.png" alt="Taça da Copa do Mundo" />
+        </section>
 
         {goalAlerts.length > 0 && (
-          <div className="goal-alerts">
+          <section className="goal-alerts">
             {goalAlerts.map((goal) => (
-              <div className="goal-alert" key={goal.id}>
-                <div>
-                  <strong>⚽ GOL DETECTADO</strong>
-                  <h3>{goal.match}</h3>
-                  <p>Placar: {goal.score} · Detectado às {goal.detectedAt}</p>
-                </div>
-                <button>
-                  Ver autor
-                  <span><b>{goal.scorer}</b><br />{goal.story}</span>
-                </button>
-              </div>
+              <article className="goal-alert" key={goal.id}>
+                <strong>⚽ Gol detectado</strong>
+                <span>{goal.match}</span>
+                <b>{goal.score}</b>
+                <small>Atualizado às {goal.time}</small>
+              </article>
             ))}
-          </div>
+          </section>
         )}
 
-        <div className="stats">
-          <div><span>⚽</span><small>JOGOS</small><strong>{totalGames || "-"}</strong></div>
-          <div><span>👥</span><small>SELEÇÕES</small><strong>{realTeams.length || "-"}</strong></div>
-          <div><span>✦</span><small>GRUPOS</small><strong>{Object.keys(groups).length || "-"}</strong></div>
-          <div><span>🏟️</span><small>ESTÁDIOS</small><strong>{realVenues.length || "-"}</strong></div>
-        </div>
+        <section className="stats">
+          <article>
+            <span>⚽</span>
+            <small>Jogos carregados</small>
+            <strong>{matches.length || "-"}</strong>
+          </article>
+          <article>
+            <span>●</span>
+            <small>Ao vivo</small>
+            <strong>{liveMatches.length}</strong>
+          </article>
+          <article>
+            <span>✓</span>
+            <small>Encerrados</small>
+            <strong>{finishedMatches.length}</strong>
+          </article>
+          <article>
+            <span>▦</span>
+            <small>Seleções encontradas</small>
+            <strong>{teams.length || "-"}</strong>
+          </article>
+        </section>
 
-        <div className="grid-main">
-          <section className="panel live-panel">
-            <div className="panel-head">
-              <h2>JOGOS AO VIVO</h2>
-              <span>AO VIVO</span>
+        <section className="panel" id="ao-vivo">
+          <div className="panel-head">
+            <div>
+              <span>Tempo real</span>
+              <h2>Jogos ao vivo</h2>
             </div>
+            <button onClick={loadMatches}>Atualizar agora</button>
+          </div>
 
-            {loading && <p className="muted">Carregando jogos...</p>}
+          {loading && <p className="muted">Carregando jogos...</p>}
 
-            {liveFixtures.length === 0 && (
-              <p className="muted">Nenhum jogo ao vivo neste momento.</p>
+          {!loading && liveMatches.length === 0 && (
+            <p className="muted">Nenhum jogo ao vivo neste momento.</p>
+          )}
+
+          <div className="match-grid">
+            {liveMatches.map((match) => (
+              <article className="match-card live" key={match.id}>
+                <div className="match-top">
+                  <span>{stageLabel(match.stage)}</span>
+                  <b>{statusLabel(match.status)}</b>
+                </div>
+
+                <div className="teams-row">
+                  <button onClick={() => setSelectedTeam(match.homeTeam || null)}>
+                    {match.homeTeam?.crest && <img src={match.homeTeam.crest} alt="" />}
+                    {teamName(match.homeTeam)}
+                  </button>
+
+                  <strong>{score(match)}</strong>
+
+                  <button onClick={() => setSelectedTeam(match.awayTeam || null)}>
+                    {match.awayTeam?.crest && <img src={match.awayTeam.crest} alt="" />}
+                    {teamName(match.awayTeam)}
+                  </button>
+                </div>
+
+                <p>{groupLabel(match.group)} · Rodada {match.matchday || "-"}</p>
+              </article>
+            ))}
+          </div>
+        </section>
+
+        <section className="panel" id="calendario">
+          <div className="panel-head">
+            <div>
+              <span>Calendário</span>
+              <h2>Jogos por fase</h2>
+            </div>
+          </div>
+
+          <div className="tabs">
+            {["ALL", "GROUP_STAGE", "LAST_16", "QUARTER_FINALS", "SEMI_FINALS", "FINAL"].map((stage) => (
+              <button
+                key={stage}
+                className={activeStage === stage ? "active" : ""}
+                onClick={() => setActiveStage(stage)}
+              >
+                {stage === "ALL" ? "Todos" : stageLabel(stage)}
+              </button>
+            ))}
+          </div>
+
+          <div className="match-list">
+            {stageMatches.map((match) => (
+              <article className="calendar-card" key={match.id}>
+                <div>
+                  <small>{stageLabel(match.stage)} · {groupLabel(match.group)}</small>
+                  <h3>{teamName(match.homeTeam)} x {teamName(match.awayTeam)}</h3>
+                  <p>Rodada {match.matchday || "-"} · {formatDate(match.utcDate)}</p>
+                </div>
+
+                <div>
+                  <strong>{score(match)}</strong>
+                  <span>{statusLabel(match.status)}</span>
+                </div>
+              </article>
+            ))}
+          </div>
+        </section>
+
+        <section className="panel" id="grupos">
+          <div className="panel-head">
+            <div>
+              <span>Grupos</span>
+              <h2>Calendário por grupos</h2>
+            </div>
+          </div>
+
+          <div className="groups-grid">
+            {Object.entries(groups).map(([group, data]) => (
+              <article className="group-card" key={group}>
+                <h3>{group}</h3>
+
+                <div className="group-teams">
+                  {data.teams.map((team) => (
+                    <button key={team.name} onClick={() => setSelectedTeam(team)}>
+                      {team.crest && <img src={team.crest} alt="" />}
+                      {teamName(team)}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="group-matches">
+                  {data.matches.slice(0, 6).map((match) => (
+                    <p key={match.id}>
+                      {formatDate(match.utcDate)} · {teamName(match.homeTeam)} x {teamName(match.awayTeam)}
+                    </p>
+                  ))}
+                </div>
+              </article>
+            ))}
+          </div>
+        </section>
+
+        <section className="panel" id="mata-mata">
+          <div className="panel-head">
+            <div>
+              <span>Fase final</span>
+              <h2>Mata-mata</h2>
+            </div>
+          </div>
+
+          <div className="bracket-grid">
+            {knockoutStages.map((stage) => {
+              const list = matches.filter((match) => match.stage === stage);
+
+              return (
+                <article className="bracket-col" key={stage}>
+                  <h3>{stageLabel(stage)}</h3>
+
+                  {list.length === 0 ? (
+                    <div className="bracket-box">Aguardando definição oficial</div>
+                  ) : (
+                    list.map((match) => (
+                      <div className="bracket-box" key={match.id}>
+                        <span>{teamName(match.homeTeam)} x {teamName(match.awayTeam)}</span>
+                        <strong>{score(match)}</strong>
+                      </div>
+                    ))
+                  )}
+                </article>
+              );
+            })}
+          </div>
+        </section>
+
+        <section className="panel" id="selecoes">
+          <div className="panel-head">
+            <div>
+              <span>Seleções</span>
+              <h2>Times encontrados no calendário</h2>
+            </div>
+          </div>
+
+          <div className="teams-grid">
+            {teams.map((team) => (
+              <button className="team-card" key={team.name} onClick={() => setSelectedTeam(team)}>
+                {team.crest && <img src={team.crest} alt="" />}
+                <strong>{teamName(team)}</strong>
+                <small>{team.tla || "Copa 2026"}</small>
+              </button>
+            ))}
+          </div>
+        </section>
+
+        <section className="panel" id="resultados">
+          <div className="panel-head">
+            <div>
+              <span>Resultados</span>
+              <h2>Jogos encerrados</h2>
+            </div>
+          </div>
+
+          <div className="match-list">
+            {finishedMatches.length === 0 && (
+              <p className="muted">Nenhum jogo encerrado disponível ainda.</p>
             )}
 
-            {liveFixtures.map((fixture) => (
-              <article className="live-match" key={fixture.id}>
-                <small>{fixture.league.round || "Grupo"}</small>
-                <strong className="elapsed">
-                  {isLive(fixture) ? `${fixture.status.long} • ${fixture.status.elapsed || 0}:00` : fixture.status.long}
-                </strong>
-
-                <div className="score-row">
-                  <div>
-                    {fixture.teams.home.logo && <img src={fixture.teams.home.logo} alt="" />}
-                    <b>{fixture.teams.home.name}</b>
-                  </div>
-                  <strong>{score(fixture)}</strong>
-                  <div>
-                    {fixture.teams.away.logo && <img src={fixture.teams.away.logo} alt="" />}
-                    <b>{fixture.teams.away.name}</b>
-                  </div>
-                </div>
-              </article>
-            ))}
-
-            <h3>PRÓXIMOS JOGOS</h3>
-            <div className="upcoming">
-              {upcomingFixtures.map((fixture) => (
-                <div key={fixture.id}>
-                  <time>{formatDate(fixture.date)}</time>
-                  <span>{fixture.teams.home.name}</span>
-                  <b>x</b>
-                  <span>{fixture.teams.away.name}</span>
-                </div>
-              ))}
-            </div>
-          </section>
-
-            <section className="panel">
-            <h2>STATUS DO TORNEIO</h2>
-            <div className="status-list">
-              <div><span>Jogos carregados</span><strong>{fixtures.length}</strong></div>
-              <div><span>Seleções encontradas</span><strong>{realTeams.length}</strong></div>
-              <div><span>Grupos encontrados</span><strong>{Object.keys(groups).length}</strong></div>
-              <div><span>Atualização</span><strong>Automática</strong></div>
-            </div>
-
-            <h2 className="mt">ÚLTIMOS RESULTADOS</h2>
-            <div className="results-list">
-              {fixtures
-                .filter((fixture) => fixture.status.short === "FINISHED")
-                .slice(0, 8)
-                .map((fixture) => (
-                  <div key={fixture.id}>
-                    <span>{fixture.teams.home.name}</span>
-                    <strong>{score(fixture)}</strong>
-                    <span>{fixture.teams.away.name}</span>
-                  </div>
-                ))}
-
-              {fixtures.filter((fixture) => fixture.status.short === "FINISHED").length === 0 && (
-                <p className="muted">Nenhum resultado final disponível ainda.</p>
-              )}
-            </div>
-          </section>
-        </div>
-
-        <section className="panel bracket">
-          <h2>MATA-MATA</h2>
-          <div className="bracket-grid">
-            {["OITAVAS DE FINAL", "QUARTAS DE FINAL", "SEMIFINAIS", "FINAL"].map((stage, index) => (
-              <div className="bracket-col" key={stage}>
-                <h3>{stage}</h3>
-                <div className="bracket-box">{index === 3 ? <img src="https://upload.wikimedia.org/wikipedia/commons/8/83/FIFA_World_Cup_Trophy.svg" alt="" /> : "Vencedor"}</div>
-                <div className="bracket-box">{index === 3 ? "Final da Copa do Mundo 2026" : "Vencedor"}</div>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        <section className="panel">
-          <div className="panel-head">
-            <h2>DESTAQUES DAS SELEÇÕES</h2>
-            <a>Ver todas ›</a>
-          </div>
-          <div className="teams-grid">
-            {(realTeams.length ? realTeams.slice(0, 8) : featuredFallback).map((team: any) => (
-              <article className="team-card" key={team.name || team}>
-                <h3>
-                  {team.logo && <img className="mini-logo" src={team.logo} alt="" />} {team.name || team}
-                  <span>★</span>
-                </h3>
-                <small>SELEÇÃO</small>
-                <p>Seleção presente no calendário oficial da Copa 2026.</p>
+            {finishedMatches.map((match) => (
+              <article className="calendar-card" key={match.id}>
                 <div>
-                  <strong>COPA<br />2026</strong>
-                  <strong>DADOS<br />REAIS</strong>
+                  <small>{stageLabel(match.stage)} · {groupLabel(match.group)}</small>
+                  <h3>{teamName(match.homeTeam)} x {teamName(match.awayTeam)}</h3>
+                  <p>Atualizado em {match.lastUpdated ? formatDate(match.lastUpdated) : "tempo real"}</p>
+                </div>
+
+                <div>
+                  <strong>{score(match)}</strong>
+                  <span>{statusLabel(match.status)}</span>
                 </div>
               </article>
             ))}
           </div>
         </section>
 
-        <section className="panel">
-          <h2>CALENDÁRIO POR GRUPOS</h2>
-          <div className="groups-grid">
-            {Object.entries(groups).slice(0, 12).map(([group, list]) => (
-              <article key={group}>
-                <h3>{group}</h3>
-                {list.slice(0, 4).map((fixture) => (
-                  <p key={fixture.id}>{fixture.teams.home.name} x {fixture.teams.away.name}</p>
+        {selectedTeam && (
+          <div className="modal-backdrop" onClick={() => setSelectedTeam(null)}>
+            <section className="team-modal" onClick={(e) => e.stopPropagation()}>
+              <button className="close" onClick={() => setSelectedTeam(null)}>×</button>
+
+              <div className="modal-title">
+                {selectedTeam.crest && <img src={selectedTeam.crest} alt="" />}
+                <div>
+                  <span>Seleção</span>
+                  <h2>{teamName(selectedTeam)}</h2>
+                  <p>{selectedTeam.tla || "Copa do Mundo 2026"}</p>
+                </div>
+              </div>
+
+              <h3>Jogos desta seleção</h3>
+
+              <div className="modal-matches">
+                {selectedTeamMatches.map((match) => (
+                  <article key={match.id}>
+                    <span>{formatDate(match.utcDate)}</span>
+                    <strong>{teamName(match.homeTeam)} x {teamName(match.awayTeam)}</strong>
+                    <b>{score(match)}</b>
+                    <small>{statusLabel(match.status)}</small>
+                  </article>
                 ))}
-              </article>
-            ))}
+              </div>
+
+              <p className="modal-note">
+                Escalação, técnico, autor do gol e história dos jogadores dependem de uma fonte
+                que envie eventos e elenco. A fonte atual mostra placares reais, calendário,
+                grupos, rodadas, escudos e status das partidas.
+              </p>
+            </section>
           </div>
-        </section>
+        )}
       </section>
     </main>
   );
