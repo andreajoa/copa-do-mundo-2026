@@ -1,0 +1,20 @@
+<svg width="520" height="720" viewBox="0 0 520 720" fill="none" xmlns="http://www.w3.org/2000/svg">
+<defs>
+<radialGradient id="g" cx="50%" cy="30%" r="70%">
+<stop offset="0%" stop-color="#fff6a8"/>
+<stop offset="35%" stop-color="#f7c739"/>
+<stop offset="70%" stop-color="#b87912"/>
+<stop offset="100%" stop-color="#5d3505"/>
+</radialGradient>
+<linearGradient id="base" x1="0" y1="0" x2="1" y2="1">
+<stop stop-color="#0a7c3c"/><stop offset=".5" stop-color="#f2c230"/><stop offset="1" stop-color="#0a7c3c"/>
+</linearGradient>
+</defs>
+<path d="M260 42c-76 0-138 61-138 137 0 53 30 99 74 122-10 47-33 90-69 125-25 24-35 56-27 88 8 35 38 58 74 58h172c36 0 66-23 74-58 8-32-2-64-27-88-36-35-59-78-69-125 44-23 74-69 74-122 0-76-62-137-138-137z" fill="url(#g)"/>
+<path d="M118 162c-49 8-82 48-82 98 0 64 48 111 116 119l20-47c-46-2-82-31-82-72 0-26 14-46 38-55l-10-43z" fill="url(#g)" opacity=".9"/>
+<path d="M402 162c49 8 82 48 82 98 0 64-48 111-116 119l-20-47c46-2 82-31 82-72 0-26-14-46-38-55l10-43z" fill="url(#g)" opacity=".9"/>
+<path d="M190 562h140l28 86H162l28-86z" fill="url(#g)"/>
+<path d="M130 642h260v45H130v-45z" fill="url(#base)"/>
+<path d="M98 685h324v28H98v-28z" fill="#c89222"/>
+<ellipse cx="260" cy="180" rx="72" ry="92" fill="rgba(255,255,255,.18)"/>
+</svg>
