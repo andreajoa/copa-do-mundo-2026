@@ -137,18 +137,9 @@ export default function WorldCupDashboard() {
 
   async function loadFixtures() {
     try {
-      let nextFixtures: Fixture[] = [];
-
-      const apiFootball = await fetch("/api/api-football/fixtures", { cache: "no-store" });
-      const apiFootballData = await apiFootball.json();
-
-      if (apiFootballData.response?.length) {
-        nextFixtures = apiFootballData.response.map(normalizeFixture);
-      } else {
-        const oldApi = await fetch("/api/matches", { cache: "no-store" });
-        const oldData = await oldApi.json();
-        nextFixtures = (oldData.matches || []).map(normalizeFixture);
-      }
+      const oldApi = await fetch("/api/matches", { cache: "no-store" });
+      const oldData = await oldApi.json();
+      const nextFixtures: Fixture[] = (oldData.matches || []).map(normalizeFixture);
 
       setFixtures((previous) => {
         if (previous.length > 0) {
@@ -195,14 +186,10 @@ export default function WorldCupDashboard() {
 
   useEffect(() => {
     loadFixtures();
-    loadExtraRealData();
-
     const interval = window.setInterval(loadFixtures, 20000);
-    const extraInterval = window.setInterval(loadExtraRealData, 60000);
 
     return () => {
       window.clearInterval(interval);
-      window.clearInterval(extraInterval);
     };
   }, []);
 
@@ -358,44 +345,31 @@ export default function WorldCupDashboard() {
             </div>
           </section>
 
-          <section className="panel">
-            <h2>CLASSIFICAÇÃO - GRUPO A</h2>
-            <table>
-              <thead><tr><th>#</th><th>SELEÇÃO</th><th>J</th><th>V</th><th>SG</th><th>PTS</th></tr></thead>
-              <tbody>
-                {standings.length === 0 && (
-                  <tr>
-                    <td colSpan={6}>Classificação será atualizada quando a competição iniciar.</td>
-                  </tr>
-                )}
+            <section className="panel">
+            <h2>STATUS DO TORNEIO</h2>
+            <div className="status-list">
+              <div><span>Jogos carregados</span><strong>{fixtures.length}</strong></div>
+              <div><span>Seleções encontradas</span><strong>{realTeams.length}</strong></div>
+              <div><span>Grupos encontrados</span><strong>{Object.keys(groups).length}</strong></div>
+              <div><span>Atualização</span><strong>Automática</strong></div>
+            </div>
 
-                {standings.slice(0, 8).map((row) => (
-                  <tr key={row.team.name}>
-                    <td>{row.rank}</td>
-                    <td>{row.team.logo && <img className="mini-logo" src={row.team.logo} alt="" />} {row.team.name}</td>
-                    <td>{row.all.played}</td>
-                    <td>{row.all.win}</td>
-                    <td>{row.goalsDiff}</td>
-                    <td>{row.points}</td>
-                  </tr>
+            <h2 className="mt">ÚLTIMOS RESULTADOS</h2>
+            <div className="results-list">
+              {fixtures
+                .filter((fixture) => fixture.status.short === "FINISHED")
+                .slice(0, 8)
+                .map((fixture) => (
+                  <div key={fixture.id}>
+                    <span>{fixture.teams.home.name}</span>
+                    <strong>{score(fixture)}</strong>
+                    <span>{fixture.teams.away.name}</span>
+                  </div>
                 ))}
-              </tbody>
-            </table>
 
-            <h2 className="mt">ARTILHEIROS</h2>
-            <div className="scorers">
-              {topScorers.length === 0 && (
-                <p className="muted">Artilharia será atualizada quando os gols forem registrados.</p>
+              {fixtures.filter((fixture) => fixture.status.short === "FINISHED").length === 0 && (
+                <p className="muted">Nenhum resultado final disponível ainda.</p>
               )}
-
-              {topScorers.slice(0, 5).map((item, i) => (
-                <div key={item.player.name}>
-                  <b>{i + 1}</b>
-                  <span>{item.player.photo && <img className="avatar" src={item.player.photo} alt="" />} {item.player.name}</span>
-                  <small>{item.statistics?.[0]?.team?.name || "-"}</small>
-                  <strong>{item.statistics?.[0]?.goals?.total || 0}</strong>
-                </div>
-              ))}
             </div>
           </section>
         </div>
