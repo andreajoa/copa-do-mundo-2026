@@ -217,7 +217,7 @@ export default function WorldCupDashboard() {
     <main className="wc-app">
       <aside className="sidebar">
         <a className="brand" href="#inicio">
-          <img src="/world-cup-trophy-real.svg" alt="Taça da Copa" />
+          <img src="/taca.png" alt="Taça da Copa" />
           <strong>WORLD CUP<br />2026</strong>
         </a>
 
@@ -231,7 +231,7 @@ export default function WorldCupDashboard() {
         </nav>
 
         <div className="side-card">
-          <img src="/world-cup-trophy-real.svg" alt="Taça da Copa" />
+          <img src="/taca.png" alt="Taça da Copa" />
           <h3>Copa do Mundo 2026</h3>
           <p>Placar, jogos, grupos, notícias e histórias em um painel organizado.</p>
         </div>
@@ -252,7 +252,7 @@ export default function WorldCupDashboard() {
             </div>
           </div>
 
-          <img className="hero-trophy" src="/world-cup-trophy-real.svg" alt="Taça da Copa do Mundo" />
+          <img className="hero-trophy" src="/taca.png" alt="Taça da Copa do Mundo" />
         </section>
 
         <section className="panel result-feature" id="resultado">
